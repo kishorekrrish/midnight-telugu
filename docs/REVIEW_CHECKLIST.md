@@ -27,6 +27,15 @@ Before any draft is considered upload-ready, Kishore must manually verify:
 - [ ] Video dimensions: 1080x1920 (vertical Shorts format)
 - [ ] Duration: 45–60 seconds
 
+## Script Director Gate
+
+Check the **Script Director** section in the review Markdown (`content/review/<id>.md`):
+
+- [ ] **Script Source** is shown (directed / humanized / generated) — prefer "directed" with approved=True
+- [ ] If directed: quality_score ≥ 88, authenticity ≥ 90, continuity ≥ 90
+- [ ] If not approved: decide whether to re-run `direct-script` or proceed manually
+- [ ] **Final Publish Recommendation** is `draft_ready_for_human_review` (not `needs_script_rewrite` or `reject`)
+
 ## Final Gates
 - [ ] Final human review completed by Kishore
 - [ ] **No auto-publish** — manual upload only after approval
