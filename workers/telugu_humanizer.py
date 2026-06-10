@@ -8,6 +8,7 @@ import uuid
 from workers.config import DEFAULT_TEXT_PROVIDER
 from workers.models import HumanizedScript, StoryScript
 from workers.script_generator import BANNED_ENDINGS
+from workers.telugu_quality import apply_telugu_replacements
 
 # Textbook → natural spoken Telugu substitutions
 _WORD_SUBS: list[tuple[str, str]] = [
@@ -148,6 +149,7 @@ def humanize_script(script: StoryScript, provider: str | None = None) -> Humaniz
 
     text = script.full_script_telugu
 
+    text = apply_telugu_replacements(text)   # English → Telugu equivalents first
     text = _apply_word_subs(text)
     text = _convert_summary_to_spoken(text)
     text = _remove_over_explanations(text)
@@ -158,6 +160,7 @@ def humanize_script(script: StoryScript, provider: str | None = None) -> Humaniz
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
 
     notes = (
+        "English→Telugu replacements applied. "
         "Textbook→spoken substitutions. "
         "Summary-style lines converted to narrator-voice. "
         "Banned endings removed. "

@@ -28,12 +28,16 @@ def _build_review_markdown(
     score_breakdown: dict | None = None,
     repeatability_warnings: list[str] | None = None,
     script_quality: dict | None = None,
+    telugu_quality: dict | None = None,
+    continuity: dict | None = None,
 ) -> str:
     """Generate a human-readable Markdown review file."""
     youtube_hashtags = youtube_hashtags or []
     score_breakdown = score_breakdown or {}
     repeatability_warnings = repeatability_warnings or []
     script_quality = script_quality or {}
+    telugu_quality = telugu_quality or {}
+    continuity = continuity or {}
 
     checklist = review.checklist
     safety_items = [
@@ -88,6 +92,43 @@ def _build_review_markdown(
                 sq_md += f"- 💡 {s}\n"
             sq_md += "\n"
 
+    # ── Telugu Authenticity section ───────────────────────────────────────
+    auth_md = ""
+    if telugu_quality:
+        auth_score = telugu_quality.get("telugu_authenticity_score", 100)
+        auth_icon = "✅" if auth_score >= 70 else "⚠️"
+        auth_md = "\n## Telugu Authenticity Check\n\n"
+        auth_md += f"**Score:** {auth_icon} {auth_score}/100\n\n"
+        replacements = telugu_quality.get("suggested_replacements", [])
+        if replacements:
+            auth_md += "**English Word Replacements:**\n\n"
+            auth_md += "| Found | Suggested Telugu |\n|-------|------------------|\n"
+            for rep in replacements[:8]:
+                auth_md += f"| `{rep.get('found', '')}` | {rep.get('replace_with', '')} |\n"
+            auth_md += "\n"
+        if telugu_quality.get("suggestions"):
+            for s in telugu_quality["suggestions"][:2]:
+                auth_md += f"- 💡 {s}\n"
+            auth_md += "\n"
+
+    # ── Continuity section ────────────────────────────────────────────────
+    cont_md = ""
+    if continuity:
+        cont_score = continuity.get("continuity_score", 100)
+        cont_icon = "✅" if cont_score >= 65 else "⚠️"
+        cont_md = "\n## Continuity Check\n\n"
+        cont_md += f"**Score:** {cont_icon} {cont_score}/100\n\n"
+        if continuity.get("issues"):
+            cont_md += "**Issues:**\n"
+            for issue in continuity["issues"]:
+                cont_md += f"- ⚠️ {issue}\n"
+            cont_md += "\n"
+        if continuity.get("suggestions"):
+            cont_md += "**Suggestions:**\n"
+            for s in continuity["suggestions"]:
+                cont_md += f"- 💡 {s}\n"
+            cont_md += "\n"
+
     repeat_md = ""
     if repeatability_warnings:
         repeat_md = "\n## Repeatability Warnings\n\n"
@@ -132,6 +173,8 @@ def _build_review_markdown(
 {youtube_section}
 {score_md}
 {sq_md}
+{auth_md}
+{cont_md}
 {repeat_md}
 ## Safety & Quality Checklist
 
@@ -183,6 +226,8 @@ def create_review(
     score_breakdown: dict | None = None,
     repeatability_warnings: list[str] | None = None,
     script_quality: dict | None = None,
+    telugu_quality: dict | None = None,
+    continuity: dict | None = None,
 ) -> tuple[ReviewStatus, Path]:
     """Create a review JSON + Markdown file for a draft. Returns (ReviewStatus, markdown_path)."""
     output_dir = output_dir or REVIEW_DIR
@@ -220,6 +265,8 @@ def create_review(
         score_breakdown=score_breakdown or {},
         repeatability_warnings=repeatability_warnings or [],
         script_quality=script_quality or {},
+        telugu_quality=telugu_quality or {},
+        continuity=continuity or {},
     )
     md_path = output_dir / f"{review_id}.md"
     md_path.write_text(md_content, encoding="utf-8")

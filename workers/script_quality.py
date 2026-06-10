@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 
 from workers.models import HumanizedScript, StoryScript
 from workers.script_generator import BANNED_ENDINGS
+from workers.story_continuity import check_continuity
+from workers.telugu_quality import check_telugu_quality
 
 # Words that indicate a sensory/cinematic moment
 _SENSORY_SIGNALS = [
@@ -56,7 +58,9 @@ _MONETIZATION_RISKS = [
 @dataclass
 class ScriptQualityResult:
     passed: bool
-    quality_score: int          # 0-100
+    quality_score: int                  # 0-100 composite
+    telugu_authenticity_score: int = 100
+    continuity_score: int = 100
     issues: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
     publish_recommendation: str = "needs_rewrite"   # approve_candidate | needs_rewrite | reject
@@ -65,6 +69,8 @@ class ScriptQualityResult:
         return {
             "passed": self.passed,
             "quality_score": self.quality_score,
+            "telugu_authenticity_score": self.telugu_authenticity_score,
+            "continuity_score": self.continuity_score,
             "issues": self.issues,
             "suggestions": self.suggestions,
             "publish_recommendation": self.publish_recommendation,
@@ -165,9 +171,43 @@ def validate_script(script: StoryScript | HumanizedScript) -> ScriptQualityResul
             break
 
     score = max(0, score)
-    passed = score >= 60 and not any("Monetization risk" in i or "real-person" in i.lower() for i in issues)
 
-    if score >= 75:
+    # ── Telugu authenticity sub-check ─────────────────────────────────────
+    tq = check_telugu_quality(text)
+    auth_score = tq.telugu_authenticity_score
+    if tq.english_word_issues:
+        issues.extend(tq.english_word_issues[:3])   # show up to 3
+        suggestions.extend(tq.suggestions)
+        # Penalty already baked into auth_score; reflect in composite
+        auth_penalty = max(0, (100 - auth_score) // 4)   # up to -25
+        score = max(0, score - auth_penalty)
+
+    # ── Continuity sub-check ──────────────────────────────────────────────
+    cont = check_continuity(script)
+    cont_score = cont.continuity_score
+    if cont.issues:
+        issues.extend(cont.issues[:3])
+        suggestions.extend(cont.suggestions[:2])
+        cont_penalty = max(0, (100 - cont_score) // 5)   # up to -20
+        score = max(0, score - cont_penalty)
+
+    score = max(0, score)
+
+    hard_block = any(
+        "Monetization risk" in i or "real-person" in i.lower() for i in issues
+    )
+    # approve_candidate requires: score ≥ 75, auth ≥ 70, continuity ≥ 65, no English > 3 issues
+    english_issue_count = len(tq.english_word_issues)
+    approve_ok = (
+        score >= 75
+        and auth_score >= 70
+        and cont_score >= 65
+        and english_issue_count <= 2
+        and not hard_block
+    )
+    passed = score >= 60 and not hard_block
+
+    if approve_ok:
         rec = "approve_candidate"
     elif score >= 50:
         rec = "needs_rewrite"
@@ -177,6 +217,8 @@ def validate_script(script: StoryScript | HumanizedScript) -> ScriptQualityResul
     return ScriptQualityResult(
         passed=passed,
         quality_score=score,
+        telugu_authenticity_score=auth_score,
+        continuity_score=cont_score,
         issues=issues,
         suggestions=suggestions,
         publish_recommendation=rec,

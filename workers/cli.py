@@ -360,10 +360,18 @@ def create_review(
 
     # Score the script and run quality validation
     script_quality_dict: dict = {}
+    telugu_quality_dict: dict = {}
+    continuity_dict: dict = {}
     if script_obj and hasattr(script_obj, "full_script_telugu"):
+        from workers.story_continuity import check_continuity
         from workers.story_scorer import score_script
+        from workers.telugu_quality import check_telugu_quality
         sq_result = validate_script(script_obj)
         script_quality_dict = sq_result.to_dict()
+        tq_result = check_telugu_quality(script_obj.full_script_telugu)
+        telugu_quality_dict = tq_result.to_dict()
+        cont_result = check_continuity(script_obj)
+        continuity_dict = cont_result.to_dict()
         scoring_target = base_script_obj if base_script_obj else (script_obj if isinstance(script_obj, StoryScript) else None)
         if scoring_target:
             sc = score_script(scoring_target, repeatability_warnings=repeatability_warnings)
@@ -386,6 +394,8 @@ def create_review(
         score_breakdown=score_breakdown,
         repeatability_warnings=repeatability_warnings,
         script_quality=script_quality_dict,
+        telugu_quality=telugu_quality_dict,
+        continuity=continuity_dict,
     )
 
     console.print(f"  [green]✓[/green] JSON  → content/review/{review.id}.json")
