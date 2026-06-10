@@ -87,13 +87,15 @@ def generate_ideas(
 def generate_script(
     idea_path: Path | None = typer.Option(None, "--idea", help="Path to idea JSON file"),
     provider: str | None = typer.Option(None, "--provider", help="AI provider (default: mock)"),
+    variants: int = typer.Option(1, "--variants", help="Number of script variants to generate (1–5)"),
 ) -> None:
-    """Generate a Telugu script from a story idea."""
+    """Generate a Telugu script from a story idea (use --variants N to generate N versions)."""
     from workers.config import IDEAS_DIR, SCRIPTS_DIR
     from workers.idea_generator import generate_ideas as _gen
     from workers.io_utils import format_datetime, latest_file, read_json, write_json
     from workers.models import StoryIdea
     from workers.script_generator import generate_script as _gen_script
+    from workers.script_quality import validate_script
     from workers.story_scorer import score_script
 
     SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -111,21 +113,45 @@ def generate_script(
         else:
             idea = read_json(found, StoryIdea)
 
-    console.print(f"[bold cyan]Generating script for: {idea.title}[/bold cyan]")
-    script = _gen_script(idea, provider=provider)
+    variants = max(1, min(5, variants))
+    console.print(f"[bold cyan]Generating {variants} script variant(s) for: {idea.title}[/bold cyan]")
 
-    # Score the script
-    score = score_script(script, repeatability_warnings=getattr(idea, "repeatability_warnings", []))
-    console.print(f"  Script score: [bold]{score.overall_score}/100[/bold] (Grade: {score.grade})")
-    if score.improvement_suggestions:
-        for s in score.improvement_suggestions[:2]:
-            console.print(f"  [dim]💡 {s}[/dim]")
+    best_script = None
+    best_sq_score = -1
 
-    filename = f"{script.id}_{format_datetime(script.created_at)}.json"
-    out_path = SCRIPTS_DIR / filename
-    write_json(out_path, script)
+    for v in range(variants):
+        script = _gen_script(idea, provider=provider)
+        score = score_script(script, repeatability_warnings=getattr(idea, "repeatability_warnings", []))
+        sq = validate_script(script)
 
-    console.print(f"  [green]✓[/green] Script saved → {out_path.name}")
+        variant_label = f"Variant {v + 1}" if variants > 1 else "Script"
+        console.print(
+            f"  {variant_label}: story={score.overall_score}/100 ({score.grade})  "
+            f"quality={sq.quality_score}/100  rec={sq.publish_recommendation}"
+        )
+        if score.improvement_suggestions:
+            for s in score.improvement_suggestions[:1]:
+                console.print(f"    [dim]💡 {s}[/dim]")
+        if sq.issues:
+            for issue in sq.issues[:1]:
+                console.print(f"    [yellow]⚠ {issue}[/yellow]")
+
+        filename = f"{script.id}_{format_datetime(script.created_at)}.json"
+        out_path = SCRIPTS_DIR / filename
+        write_json(out_path, script)
+
+        if sq.quality_score > best_sq_score:
+            best_sq_score = sq.quality_score
+            best_script = script
+            best_path = out_path
+
+    script = best_script  # type: ignore[assignment]
+    out_path = best_path  # type: ignore[assignment]
+
+    if variants > 1:
+        console.print(f"\n  [green]★[/green] Best variant saved → {out_path.name} (quality={best_sq_score}/100)")
+    else:
+        console.print(f"  [green]✓[/green] Script saved → {out_path.name}")
     console.print(f"  Duration: ~{script.estimated_duration_seconds}s")
     console.print("\nNext: [yellow]python -m workers.cli humanize-script[/yellow]")
 
@@ -255,6 +281,7 @@ def create_review(
     from workers.io_utils import latest_file, read_json
     from workers.models import HumanizedScript, ScenePlan, StoryScript
     from workers.review_queue import create_review as _create_review
+    from workers.script_quality import validate_script
 
     latest_script_path = latest_file(SCRIPTS_DIR)
     latest_scenes_path = latest_file(SCENES_DIR)
@@ -331,9 +358,12 @@ def create_review(
         except Exception:
             pass
 
-    # Score the script if we have one
+    # Score the script and run quality validation
+    script_quality_dict: dict = {}
     if script_obj and hasattr(script_obj, "full_script_telugu"):
         from workers.story_scorer import score_script
+        sq_result = validate_script(script_obj)
+        script_quality_dict = sq_result.to_dict()
         scoring_target = base_script_obj if base_script_obj else (script_obj if isinstance(script_obj, StoryScript) else None)
         if scoring_target:
             sc = score_script(scoring_target, repeatability_warnings=repeatability_warnings)
@@ -355,11 +385,19 @@ def create_review(
         youtube_hashtags=youtube_hashtags,
         score_breakdown=score_breakdown,
         repeatability_warnings=repeatability_warnings,
+        script_quality=script_quality_dict,
     )
 
     console.print(f"  [green]✓[/green] JSON  → content/review/{review.id}.json")
     console.print(f"  [green]✓[/green] [bold]Markdown → {md_path}[/bold]")
     console.print(f"  Status: [yellow]{review.status}[/yellow]")
+
+    if script_quality_dict:
+        rec = script_quality_dict.get("publish_recommendation", "needs_rewrite")
+        sq_score = script_quality_dict.get("quality_score", 0)
+        rec_colors = {"approve_candidate": "green", "needs_rewrite": "yellow", "reject": "red"}
+        color = rec_colors.get(rec, "white")
+        console.print(f"  Script quality: [{color}]{sq_score}/100 — {rec}[/{color}]")
 
     console.print("\n[bold]Review checklist — complete manually before approving:[/bold]")
     for field, val in review.checklist.model_dump().items():

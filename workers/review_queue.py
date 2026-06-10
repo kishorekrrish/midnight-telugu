@@ -27,11 +27,13 @@ def _build_review_markdown(
     youtube_hashtags: list[str] | None = None,
     score_breakdown: dict | None = None,
     repeatability_warnings: list[str] | None = None,
+    script_quality: dict | None = None,
 ) -> str:
     """Generate a human-readable Markdown review file."""
     youtube_hashtags = youtube_hashtags or []
     score_breakdown = score_breakdown or {}
     repeatability_warnings = repeatability_warnings or []
+    script_quality = script_quality or {}
 
     checklist = review.checklist
     safety_items = [
@@ -61,6 +63,30 @@ def _build_review_markdown(
         score_md = "\n## Quality Score\n\n"
         for k, v in score_breakdown.items():
             score_md += f"- **{k.replace('_', ' ').title()}**: {v}\n"
+
+    sq_md = ""
+    if script_quality:
+        sq = script_quality
+        passed_icon = "✅" if sq.get("passed") else "❌"
+        rec = sq.get("publish_recommendation", "needs_rewrite")
+        rec_icons = {
+            "approve_candidate": "🟢 Approve Candidate",
+            "needs_rewrite": "🟡 Needs Rewrite",
+            "reject": "🔴 Reject",
+        }
+        sq_md = "\n## Script Quality Validation\n\n"
+        sq_md += f"**Result:** {passed_icon} {'PASS' if sq.get('passed') else 'FAIL'} — Score: {sq.get('quality_score', 0)}/100\n\n"
+        sq_md += f"**Publish Recommendation:** {rec_icons.get(rec, rec)}\n\n"
+        if sq.get("issues"):
+            sq_md += "**Issues:**\n"
+            for issue in sq["issues"]:
+                sq_md += f"- ⚠️ {issue}\n"
+            sq_md += "\n"
+        if sq.get("suggestions"):
+            sq_md += "**Suggestions:**\n"
+            for s in sq["suggestions"]:
+                sq_md += f"- 💡 {s}\n"
+            sq_md += "\n"
 
     repeat_md = ""
     if repeatability_warnings:
@@ -105,6 +131,7 @@ def _build_review_markdown(
 {thumbnail_section}
 {youtube_section}
 {score_md}
+{sq_md}
 {repeat_md}
 ## Safety & Quality Checklist
 
@@ -155,6 +182,7 @@ def create_review(
     youtube_hashtags: list[str] | None = None,
     score_breakdown: dict | None = None,
     repeatability_warnings: list[str] | None = None,
+    script_quality: dict | None = None,
 ) -> tuple[ReviewStatus, Path]:
     """Create a review JSON + Markdown file for a draft. Returns (ReviewStatus, markdown_path)."""
     output_dir = output_dir or REVIEW_DIR
@@ -191,6 +219,7 @@ def create_review(
         youtube_hashtags=youtube_hashtags or [],
         score_breakdown=score_breakdown or {},
         repeatability_warnings=repeatability_warnings or [],
+        script_quality=script_quality or {},
     )
     md_path = output_dir / f"{review_id}.md"
     md_path.write_text(md_content, encoding="utf-8")
