@@ -271,6 +271,7 @@ def create_review(
     repeatability_warnings: list[str] = []
 
     script_obj = None
+    base_script_obj: StoryScript | None = None
     if latest_script_path:
         try:
             script_obj = read_json(latest_script_path, HumanizedScript)
@@ -289,6 +290,19 @@ def create_review(
             youtube_title = script_obj.youtube_title  # type: ignore[union-attr]
             youtube_description = script_obj.youtube_description  # type: ignore[union-attr]
             youtube_hashtags = script_obj.youtube_hashtags  # type: ignore[union-attr]
+
+    # If we have a humanized script, also load the original StoryScript for YouTube metadata + scoring
+    if isinstance(script_obj, HumanizedScript):
+        orig_path = latest_file(SCRIPTS_DIR, pattern="script_*.json")
+        if orig_path:
+            try:
+                base_script_obj = read_json(orig_path, StoryScript)
+                if not youtube_title:
+                    youtube_title = base_script_obj.youtube_title
+                    youtube_description = base_script_obj.youtube_description
+                    youtube_hashtags = base_script_obj.youtube_hashtags
+            except Exception:
+                pass
 
     if not draft_title:
         draft_title = "Untitled Draft"
@@ -320,8 +334,9 @@ def create_review(
     # Score the script if we have one
     if script_obj and hasattr(script_obj, "full_script_telugu"):
         from workers.story_scorer import score_script
-        if isinstance(script_obj, StoryScript):
-            sc = score_script(script_obj, repeatability_warnings=repeatability_warnings)
+        scoring_target = base_script_obj if base_script_obj else (script_obj if isinstance(script_obj, StoryScript) else None)
+        if scoring_target:
+            sc = score_script(scoring_target, repeatability_warnings=repeatability_warnings)
             score_breakdown = sc.to_dict()["score_breakdown"]
 
     console.print(f"[bold cyan]Creating review package: {draft_title}[/bold cyan]")
