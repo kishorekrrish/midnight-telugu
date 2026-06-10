@@ -196,13 +196,13 @@ def validate_script(script: StoryScript | HumanizedScript) -> ScriptQualityResul
     hard_block = any(
         "Monetization risk" in i or "real-person" in i.lower() for i in issues
     )
-    # approve_candidate requires: score ≥ 75, auth ≥ 70, continuity ≥ 65, no English > 3 issues
+    # approve_candidate requires: score ≥ 88, auth ≥ 90, continuity ≥ 90, no English issues
     english_issue_count = len(tq.english_word_issues)
     approve_ok = (
-        score >= 75
-        and auth_score >= 70
-        and cont_score >= 65
-        and english_issue_count <= 2
+        score >= 88
+        and auth_score >= 90
+        and cont_score >= 90
+        and english_issue_count == 0
         and not hard_block
     )
     passed = score >= 60 and not hard_block

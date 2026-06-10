@@ -88,6 +88,27 @@ class HumanizedScript(BaseModel):
     model_config = {"use_enum_values": True}
 
 
+class DirectedScript(BaseModel):
+    id: str
+    source_script_id: str
+    title: str
+    category: ContentCategory
+    hook_line: str
+    directed_telugu_script: str
+    director_provider: str = "mock"
+    quality_score: int = 0
+    telugu_authenticity_score: int = 0
+    continuity_score: int = 0
+    issues_fixed: list[str] = Field(default_factory=list)
+    remaining_issues: list[str] = Field(default_factory=list)
+    recommendation: str = "needs_rewrite"
+    approved_for_scene_planning: bool = False
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+    model_config = {"use_enum_values": True}
+
+
 class Scene(BaseModel):
     scene_number: int = Field(..., ge=1)
     timestamp_range: str = Field(..., description="e.g. '00:00-00:07'")

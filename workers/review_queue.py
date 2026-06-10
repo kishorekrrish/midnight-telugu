@@ -30,6 +30,8 @@ def _build_review_markdown(
     script_quality: dict | None = None,
     telugu_quality: dict | None = None,
     continuity: dict | None = None,
+    directed_script_info: dict | None = None,
+    script_source: str = "generated",
 ) -> str:
     """Generate a human-readable Markdown review file."""
     youtube_hashtags = youtube_hashtags or []
@@ -135,6 +137,65 @@ def _build_review_markdown(
         for w in repeatability_warnings:
             repeat_md += f"- ⚠️ {w}\n"
 
+    # ── Script Director section ───────────────────────────────────────────────
+    director_md = ""
+    if directed_script_info:
+        di = directed_script_info
+        approved_icon = "✅ Yes" if di.get("approved_for_scene_planning") else "❌ No"
+        rec = di.get("recommendation", "needs_rewrite")
+        rec_icons = {
+            "approve_candidate": "🟢 Approve Candidate",
+            "needs_rewrite": "🟡 Needs Rewrite",
+            "reject": "🔴 Reject",
+        }
+        director_md = "\n## Script Director\n\n"
+        director_md += f"**Provider:** {di.get('provider', 'mock')}\n\n"
+        director_md += (
+            f"**Scores:** Quality {di.get('quality_score', 0)}/100 | "
+            f"Authenticity {di.get('telugu_authenticity_score', 0)}/100 | "
+            f"Continuity {di.get('continuity_score', 0)}/100\n\n"
+        )
+        director_md += f"**Recommendation:** {rec_icons.get(rec, rec)}\n\n"
+        director_md += f"**Approved for scene planning:** {approved_icon}\n\n"
+        if di.get("issues_fixed"):
+            director_md += "**Issues Fixed:**\n"
+            for issue in di["issues_fixed"][:5]:
+                director_md += f"- ✅ {issue}\n"
+            director_md += "\n"
+        if di.get("remaining_issues"):
+            director_md += "**Remaining Issues:**\n"
+            for issue in di["remaining_issues"][:5]:
+                director_md += f"- ⚠️ {issue}\n"
+            director_md += "\n"
+
+    # ── Script Source section ─────────────────────────────────────────────────
+    source_md = f"\n## Script Source\n\nScript used for this review: **{script_source}**\n"
+
+    # ── Final Publish Recommendation ─────────────────────────────────────────
+    hard_blocks = False
+    final_quality = 0
+    approved_directed = False
+    if script_quality:
+        final_quality = script_quality.get("quality_score", 0)
+        hard_blocks = any(
+            "Monetization risk" in i or "real-person" in i.lower()
+            for i in script_quality.get("issues", [])
+        )
+    if directed_script_info:
+        approved_directed = bool(directed_script_info.get("approved_for_scene_planning"))
+
+    if hard_blocks:
+        final_rec = "reject"
+        final_rec_label = "🔴 **REJECT** — Hard safety block found. Do not publish."
+    elif approved_directed or final_quality >= 75:
+        final_rec = "draft_ready_for_human_review"
+        final_rec_label = "🟢 **DRAFT READY FOR HUMAN REVIEW** — Meets quality threshold."
+    else:
+        final_rec = "needs_script_rewrite"
+        final_rec_label = "🟡 **NEEDS SCRIPT REWRITE** — Quality below threshold (75). Improve and re-run."
+
+    final_rec_md = f"\n## Final Publish Recommendation\n\n{final_rec_label}\n\n> `{final_rec}`\n"
+
     scene_section = f"\n## Scene Table\n\n{scene_table}" if scene_table else ""
     summary_section = f"\n## English Summary\n\n{english_summary}" if english_summary else ""
     thumbnail_section = f"\n## Thumbnail Idea\n\n{thumbnail_idea}" if thumbnail_idea else ""
@@ -172,6 +233,8 @@ def _build_review_markdown(
 {thumbnail_section}
 {youtube_section}
 {score_md}
+{director_md}
+{source_md}
 {sq_md}
 {auth_md}
 {cont_md}
@@ -188,6 +251,9 @@ def _build_review_markdown(
 - **Scene Plan:** `{review.scene_plan_path or 'N/A'}`
 - **Audio:** `{review.audio_path or 'N/A (mock)'}`
 - **Video:** `{review.video_path or 'N/A (dry-run)'}`
+
+---
+{final_rec_md}
 
 ---
 
@@ -228,6 +294,8 @@ def create_review(
     script_quality: dict | None = None,
     telugu_quality: dict | None = None,
     continuity: dict | None = None,
+    directed_script_info: dict | None = None,
+    script_source: str = "generated",
 ) -> tuple[ReviewStatus, Path]:
     """Create a review JSON + Markdown file for a draft. Returns (ReviewStatus, markdown_path)."""
     output_dir = output_dir or REVIEW_DIR
@@ -267,6 +335,8 @@ def create_review(
         script_quality=script_quality or {},
         telugu_quality=telugu_quality or {},
         continuity=continuity or {},
+        directed_script_info=directed_script_info,
+        script_source=script_source,
     )
     md_path = output_dir / f"{review_id}.md"
     md_path.write_text(md_content, encoding="utf-8")

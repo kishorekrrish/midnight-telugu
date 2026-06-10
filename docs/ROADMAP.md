@@ -1,6 +1,16 @@
 # Roadmap — Midnight Telugu
 
-## v1.1 — Content Quality Hardening (Current)
+## v1.2 — Script Director Gate (Current)
+
+- [x] Script Director gate — automated Telugu narration improvement loop (Phase 6)
+- [x] Provider abstraction — mock + OpenAI backends (`workers/providers/`)
+- [x] DirectedScript model — saved under `content/scripts/directed/`
+- [x] Strict approval thresholds — quality ≥ 88, authenticity ≥ 90, continuity ≥ 90, zero English issues
+- [x] plan-scenes prefers approved DirectedScript (falls back to humanized/generated)
+- [x] Enhanced Review Markdown — Script Director section, Script Source, Final Publish Recommendation
+- [x] 119 passing tests
+
+## v1.1 — Content Quality Hardening
 
 - [x] StoryScorer — 8-dimension scoring (0-100, A-F grade)
 - [x] StoryMemory — repeat-pattern detection across all generated content

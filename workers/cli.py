@@ -190,6 +190,79 @@ def humanize_script(
 
     console.print(f"  [green]✓[/green] Humanized script saved → {out_path.name}")
     console.print(f"  [dim]{humanized.humanization_notes}[/dim]")
+    console.print("\nNext: [yellow]python -m workers.cli direct-script[/yellow]")
+
+
+@app.command("direct-script")
+def direct_script_cmd(
+    script_path: Path | None = typer.Option(None, "--script", help="Path to script/humanized JSON"),
+    provider: str | None = typer.Option(None, "--provider", help="Provider: mock or openai"),
+    max_attempts: int = typer.Option(3, "--max-attempts", help="Max retry attempts"),
+    strict: bool = typer.Option(False, "--strict", help="Fail if thresholds not met"),
+) -> None:
+    """Run the Script Director gate to improve and validate a Telugu script."""
+    from workers.config import DIRECTED_SCRIPTS_DIR, SCRIPT_DIRECTOR_PROVIDER, SCRIPTS_DIR
+    from workers.io_utils import latest_file, read_json
+    from workers.models import HumanizedScript, StoryScript
+    from workers.script_director import direct_script as _direct
+    from workers.script_director import save_directed_script
+
+    DIRECTED_SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    if script_path:
+        try:
+            source = read_json(script_path, HumanizedScript)
+        except Exception:
+            source = read_json(script_path, StoryScript)
+    else:
+        # Try latest humanized first, then latest generated script
+        found = latest_file(SCRIPTS_DIR)
+        if not found:
+            console.print("[red]No scripts found. Run generate-script first.[/red]")
+            raise typer.Exit(1)
+        try:
+            source = read_json(found, HumanizedScript)
+        except Exception:
+            try:
+                source = read_json(found, StoryScript)
+            except Exception:
+                console.print("[red]Could not parse latest script file.[/red]")
+                raise typer.Exit(1) from None
+
+    used_provider = provider or SCRIPT_DIRECTOR_PROVIDER
+    console.print(f"[bold cyan]Running Script Director on: {source.title}[/bold cyan]")
+    console.print(f"  Provider: [yellow]{used_provider}[/yellow]  Max attempts: {max_attempts}")
+
+    result = _direct(source, provider_name=used_provider, max_attempts=max_attempts)
+    directed, out_path = save_directed_script(result, source, DIRECTED_SCRIPTS_DIR)
+
+    console.print(f"\n  [green]✓[/green] Directed script saved → {out_path.name}")
+    console.print(f"  Provider: {directed.director_provider}")
+    console.print(f"  Quality score: {directed.quality_score}/100")
+    console.print(f"  Telugu authenticity: {directed.telugu_authenticity_score}/100")
+    console.print(f"  Continuity: {directed.continuity_score}/100")
+
+    if directed.issues_fixed:
+        console.print(f"  Issues fixed ({len(directed.issues_fixed)}):")
+        for issue in directed.issues_fixed[:5]:
+            console.print(f"    [green]✓[/green] {issue}")
+
+    if directed.remaining_issues:
+        console.print(f"  Remaining issues ({len(directed.remaining_issues)}):")
+        for issue in directed.remaining_issues[:5]:
+            console.print(f"    [yellow]⚠[/yellow] {issue}")
+
+    rec_colors = {"approve_candidate": "green", "needs_rewrite": "yellow", "reject": "red"}
+    color = rec_colors.get(directed.recommendation, "white")
+    console.print(f"  Recommendation: [{color}]{directed.recommendation}[/{color}]")
+
+    if directed.approved_for_scene_planning:
+        console.print("  [bold green]✓ Approved for scene planning[/bold green]")
+    else:
+        console.print("  [yellow]⚠ Not approved — thresholds not met. Review and re-run or continue manually.[/yellow]")
+        if strict:
+            raise typer.Exit(1)
+
     console.print("\nNext: [yellow]python -m workers.cli plan-scenes[/yellow]")
 
 
@@ -197,31 +270,70 @@ def humanize_script(
 def plan_scenes(
     script_path: Path | None = typer.Option(None, "--script", help="Path to script/humanized JSON"),
     num_scenes: int = typer.Option(7, "--scenes", help="Number of scenes (6-10)"),
+    allow_unapproved: bool = typer.Option(False, "--allow-unapproved", help="Use DirectedScript even if not approved"),
 ) -> None:
     """Convert a script into a production-ready scene plan."""
-    from workers.config import SCENES_DIR, SCRIPTS_DIR
+    from workers.config import DIRECTED_SCRIPTS_DIR, SCENES_DIR, SCRIPTS_DIR
     from workers.io_utils import format_datetime, latest_file, read_json, write_json
-    from workers.models import HumanizedScript, StoryScript
+    from workers.models import DirectedScript, HumanizedScript, StoryScript
     from workers.scene_planner import plan_scenes as _plan
 
     SCENES_DIR.mkdir(parents=True, exist_ok=True)
 
+    source_type = "generated"
+
     if script_path:
         try:
             script = read_json(script_path, HumanizedScript)
+            source_type = "humanized"
         except Exception:
             script = read_json(script_path, StoryScript)
+            source_type = "generated"
     else:
-        found = latest_file(SCRIPTS_DIR)
-        if not found:
-            console.print("[red]No scripts found. Run generate-script first.[/red]")
-            raise typer.Exit(1)
-        try:
-            script = read_json(found, HumanizedScript)
-        except Exception:
-            script = read_json(found, StoryScript)
+        # 1. Try approved DirectedScript first
+        directed_found = latest_file(DIRECTED_SCRIPTS_DIR, pattern="directed_*.json")
+        script = None
+        if directed_found:
+            try:
+                ds = read_json(directed_found, DirectedScript)
+                if ds.approved_for_scene_planning or allow_unapproved:
+                    if not ds.approved_for_scene_planning:
+                        console.print(
+                            "[yellow]⚠ Using unapproved DirectedScript (--allow-unapproved set).[/yellow]"
+                        )
+                    # Wrap as HumanizedScript for scene planner
+                    script = HumanizedScript(
+                        id=ds.id,
+                        script_id=ds.source_script_id,
+                        title=ds.title,
+                        category=ds.category,
+                        hook_line=ds.hook_line,
+                        full_script_telugu=ds.directed_telugu_script,
+                    )
+                    source_type = "directed"
+                else:
+                    console.print(
+                        "[yellow]⚠ Latest DirectedScript not approved for scene planning. "
+                        "Falling back to humanized/generated. Use --allow-unapproved to override.[/yellow]"
+                    )
+            except Exception:
+                pass
+
+        if script is None:
+            # 2. Try latest humanized script
+            found = latest_file(SCRIPTS_DIR)
+            if not found:
+                console.print("[red]No scripts found. Run generate-script first.[/red]")
+                raise typer.Exit(1)
+            try:
+                script = read_json(found, HumanizedScript)
+                source_type = "humanized"
+            except Exception:
+                script = read_json(found, StoryScript)
+                source_type = "generated"
 
     console.print(f"[bold cyan]Planning {num_scenes} scenes for: {script.title}[/bold cyan]")
+    console.print(f"  Script source: [yellow]{source_type}[/yellow]")
     scene_plan = _plan(script, num_scenes=num_scenes)
 
     filename = f"{scene_plan.id}_{format_datetime(scene_plan.created_at)}.json"
@@ -277,9 +389,9 @@ def create_review(
     title: str | None = typer.Option(None, "--title", help="Override title"),
 ) -> None:
     """Create a human review package (JSON + Markdown) for the latest draft."""
-    from workers.config import SCENES_DIR, SCRIPTS_DIR, VIDEOS_OUT_DIR
+    from workers.config import DIRECTED_SCRIPTS_DIR, SCENES_DIR, SCRIPTS_DIR, VIDEOS_OUT_DIR
     from workers.io_utils import latest_file, read_json
-    from workers.models import HumanizedScript, ScenePlan, StoryScript
+    from workers.models import DirectedScript, HumanizedScript, ScenePlan, StoryScript
     from workers.review_queue import create_review as _create_review
     from workers.script_quality import validate_script
 
@@ -377,6 +489,29 @@ def create_review(
             sc = score_script(scoring_target, repeatability_warnings=repeatability_warnings)
             score_breakdown = sc.to_dict()["score_breakdown"]
 
+    # Load DirectedScript info if available
+    directed_script_info: dict | None = None
+    script_source = "generated"
+    if isinstance(script_obj, HumanizedScript):
+        script_source = "humanized"
+    directed_path = latest_file(DIRECTED_SCRIPTS_DIR, pattern="directed_*.json")
+    if directed_path:
+        try:
+            ds = read_json(directed_path, DirectedScript)
+            directed_script_info = {
+                "provider": ds.director_provider,
+                "quality_score": ds.quality_score,
+                "telugu_authenticity_score": ds.telugu_authenticity_score,
+                "continuity_score": ds.continuity_score,
+                "issues_fixed": ds.issues_fixed,
+                "remaining_issues": ds.remaining_issues,
+                "recommendation": ds.recommendation,
+                "approved_for_scene_planning": ds.approved_for_scene_planning,
+            }
+            script_source = "directed"
+        except Exception:
+            pass
+
     console.print(f"[bold cyan]Creating review package: {draft_title}[/bold cyan]")
 
     review, md_path = _create_review(
@@ -396,6 +531,8 @@ def create_review(
         script_quality=script_quality_dict,
         telugu_quality=telugu_quality_dict,
         continuity=continuity_dict,
+        directed_script_info=directed_script_info,
+        script_source=script_source,
     )
 
     console.print(f"  [green]✓[/green] JSON  → content/review/{review.id}.json")

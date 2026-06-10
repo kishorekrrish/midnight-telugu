@@ -6,6 +6,15 @@ AI-assisted Telugu YouTube Shorts draft production system for mystery, crime, ho
 
 ---
 
+## What This Does (v1.2 — Script Director Gate)
+
+New in v1.2:
+- **Script Director Gate** — automated Telugu narration improvement using a director prompt (Phase 6). Runs after humanize-script and before plan-scenes.
+- **Provider abstraction** — `mock` (no API keys) and `openai` providers. Default is always `mock`.
+- **Strict approval thresholds** — quality ≥ 88, Telugu authenticity ≥ 90, continuity ≥ 90, zero English issues.
+- **Directed Script JSON** — saved under `content/scripts/directed/`. Plan-scenes prefers approved directed scripts.
+- **Enhanced Review Markdown** — includes Script Director section, Script Source, and Final Publish Recommendation.
+
 ## What This Does (v1.1)
 
 Quality additions over v1:
@@ -21,11 +30,35 @@ Quality additions over v1:
 1. Generates original Telugu story ideas
 2. Writes a natural Telugu narration script
 3. Improves the script's Telugu flow (humanizer)
-4. Plans 6–10 cinematic scenes
-5. Composes a draft vertical video (FFmpeg)
-6. Creates a review package for Kishore to inspect
-7. Approves or rejects after human review
-8. Tracks performance manually
+4. Runs Script Director gate (automated quality improvement pass)
+5. Plans 6–10 cinematic scenes
+6. Composes a draft vertical video (FFmpeg)
+7. Creates a review package for Kishore to inspect
+8. Approves or rejects after human review
+9. Tracks performance manually
+
+### Script Director Gate
+
+The `direct-script` command runs an automated improvement loop:
+1. Validates the humanized script against all quality thresholds
+2. Builds a director prompt with found issues and the `prompts/script_director.md` system prompt
+3. Calls a text provider (default: `mock`, optional: `openai`) to rewrite the script
+4. Re-validates and retries up to `--max-attempts` times (default: 3)
+5. Saves the best result as a `DirectedScript` JSON under `content/scripts/directed/`
+6. Sets `approved_for_scene_planning` if quality ≥ 88, authenticity ≥ 90, continuity ≥ 90, and zero English issues
+
+Plan-scenes automatically uses an approved DirectedScript when one exists. Use `--allow-unapproved` to bypass.
+
+```bash
+# Basic usage (uses mock provider, no API keys needed)
+python -m workers.cli direct-script
+
+# With OpenAI (requires OPENAI_API_KEY in .env)
+python -m workers.cli direct-script --provider openai
+
+# Fail pipeline if thresholds not met
+python -m workers.cli direct-script --strict
+```
 
 **No auto-upload. No YouTube API. No paid API keys required in v1.**
 
@@ -75,13 +108,16 @@ python -m workers.cli generate-script
 # Step 3: Humanize the script (improve Telugu naturalness)
 python -m workers.cli humanize-script
 
-# Step 4: Plan 7 cinematic scenes
+# Step 4: Run the Script Director gate (automated quality improvement)
+python -m workers.cli direct-script
+
+# Step 5: Plan 7 cinematic scenes
 python -m workers.cli plan-scenes
 
-# Step 5: Compose the video (dry-run if FFmpeg/assets missing)
+# Step 6: Compose the video (dry-run if FFmpeg/assets missing)
 python -m workers.cli compose-video
 
-# Step 6: Create the review package
+# Step 7: Create the review package
 python -m workers.cli create-review
 ```
 
