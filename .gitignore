@@ -17,6 +17,10 @@ build/
 outputs/
 assets/music/*.mp3
 assets/sfx/*.mp3
+content/ideas/*.json
+content/scripts/*.json
+content/scenes/*.json
+content/review/*.json
 content/approved/
 content/published/
 analytics/*.csv
