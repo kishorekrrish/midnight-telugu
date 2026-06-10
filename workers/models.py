@@ -42,6 +42,15 @@ class StoryIdea(BaseModel):
     estimated_duration_seconds: int = Field(default=55, ge=30, le=90)
     originality_notes: str = ""
     safety_notes: str = ""
+    # Quality metadata fields
+    hook_type: str = ""
+    twist_type: str = ""
+    emotional_core: str = ""
+    visual_signature: str = ""
+    risk_flags: list[str] = Field(default_factory=list)
+    story_score: int = 0
+    score_breakdown: dict = Field(default_factory=dict)
+    repeatability_warnings: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=_now)
 
     model_config = {"use_enum_values": True}

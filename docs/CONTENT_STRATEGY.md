@@ -31,6 +31,27 @@ Target: Telugu-speaking audiences (Andhra Pradesh, Telangana, diaspora) aged 18�
   4. Twist/Reveal (40–52s): Unexpected turn
   5. Closing Line (52–60s): Emotional landing or open question
 
+## Automated Quality Scoring
+
+Every generated idea and script is automatically scored across 8 dimensions:
+
+| Dimension | Max | What it measures |
+|-----------|-----|-----------------|
+| hook_strength | 15 | Opening sentence impact |
+| emotional_pull | 12 | Emotional resonance in story |
+| suspense_build | 12 | Tension escalation |
+| twist_quality | 15 | Surprise and earned reveal |
+| originality | 15 | Freshness vs repeat patterns |
+| telugu_naturalness | 10 | Spoken vs textbook Telugu |
+| visual_potential | 10 | Cinematability of scenes |
+| monetization_safety | 11 | YouTube advertiser compliance |
+
+**Target score: 70+ (Grade B or above) before approval.**
+
+Scores below 55 should be regenerated or improved before review.
+
+The **repeatability checker** (`story_memory.py`) scans all prior content to warn about repeated twist types, category overuse, same locations, and similar relationship conflicts.
+
 ## Quality Bar
 
 - Every story must feel like a real person telling it, not a content farm.

@@ -21,6 +21,7 @@ content/ideas/*.json
 content/scripts/*.json
 content/scenes/*.json
 content/review/*.json
+content/review/*.md
 content/approved/
 content/published/
 analytics/*.csv

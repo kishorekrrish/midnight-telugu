@@ -6,6 +6,16 @@ AI-assisted Telugu YouTube Shorts draft production system for mystery, crime, ho
 
 ---
 
+## What This Does (v1.1)
+
+Quality additions over v1:
+- **Story Scorer** — every idea and script is scored 0-100 across 8 dimensions (hook strength, twist quality, originality, monetization safety, etc.)
+- **Repeat Pattern Detector** — scans all prior content to warn when you're repeating twist types, categories, or locations
+- **Diverse Idea Generation** — all 10 content buckets are covered in every batch (no category spam)
+- **8 Script Structures** — cold open, object mystery, unreliable narrator, emotional reveal, etc.
+- **Stronger Humanizer** — removes AI endings, splits long sentences, adds voiceover pacing
+- **Markdown Review Package** — every draft generates a human-readable `.md` file with full script, scene table, YouTube metadata, and approve/reject commands
+
 ## What This Does
 
 1. Generates original Telugu story ideas

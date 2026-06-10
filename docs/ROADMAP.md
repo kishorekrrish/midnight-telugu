@@ -1,5 +1,15 @@
 # Roadmap — Midnight Telugu
 
+## v1.1 — Content Quality Hardening (Current)
+
+- [x] StoryScorer — 8-dimension scoring (0-100, A-F grade)
+- [x] StoryMemory — repeat-pattern detection across all generated content
+- [x] Diverse idea generation — all 10 content buckets covered per batch
+- [x] Script structure variety — 8 narrative structures (cold_open, object_mystery, etc.)
+- [x] Improved Telugu humanizer — pacing, rhythm, AI-ending removal
+- [x] Review Markdown — full draft review package in readable format
+- [x] 77 passing tests
+
 ## v1 — Local Draft System (Current)
 
 - [x] Project structure and configuration

@@ -1,5 +1,8 @@
 # Human Review Checklist — Midnight Telugu
 
+> The review package is automatically generated as both JSON and **Markdown** at `content/review/<review_id>.md`. Open the Markdown file to review the full script, scene table, YouTube metadata, quality score, and repeatability warnings in one place.
+
+
 Before any draft is considered upload-ready, Kishore must manually verify:
 
 ## Story Quality
