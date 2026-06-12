@@ -48,6 +48,7 @@ The `direct-script` command runs an automated improvement loop:
 6. Sets `approved_for_scene_planning` if quality ≥ 88, authenticity ≥ 90, continuity ≥ 90, and zero English issues
 
 Plan-scenes automatically uses an approved DirectedScript when one exists. Use `--allow-unapproved` to bypass.
+If a DirectedScript exists but is not approved, `plan-scenes` now stops by default instead of silently falling back.
 
 ```bash
 # Basic usage (uses mock provider, no API keys needed)
@@ -58,6 +59,10 @@ python -m workers.cli direct-script --provider openai
 
 # Fail pipeline if thresholds not met
 python -m workers.cli direct-script --strict
+
+# Scene planning blocks on failed DirectedScript unless explicitly overridden
+python -m workers.cli plan-scenes
+python -m workers.cli plan-scenes --allow-unapproved
 ```
 
 **No auto-upload. No YouTube API. No paid API keys required in v1.**

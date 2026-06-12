@@ -8,12 +8,14 @@ All operations run locally. No external API required.
 python -m workers.cli generate-ideas --count 5
 python -m workers.cli generate-script
 python -m workers.cli humanize-script
+python -m workers.cli direct-script
 python -m workers.cli plan-scenes
 python -m workers.cli compose-video
 python -m workers.cli create-review
 ```
 
 All outputs go to `content/` and `outputs/`. Human reviews and approves. No upload.
+If a DirectedScript exists and fails approval, `plan-scenes` stops by default unless `--allow-unapproved` is used for testing.
 
 ## v2: Real Provider Integration (Planned)
 

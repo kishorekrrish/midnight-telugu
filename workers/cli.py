@@ -17,6 +17,19 @@ app = typer.Typer(
 console = Console()
 
 
+def _directed_to_humanized(script):
+    from workers.models import HumanizedScript
+
+    return HumanizedScript(
+        id=script.id,
+        script_id=script.source_script_id,
+        title=script.title,
+        category=script.category,
+        hook_line=script.hook_line,
+        full_script_telugu=script.directed_telugu_script,
+    )
+
+
 @app.command("init-project")
 def init_project() -> None:
     """Create required directories and analytics CSV files."""
@@ -280,47 +293,78 @@ def plan_scenes(
 
     SCENES_DIR.mkdir(parents=True, exist_ok=True)
 
+    strict_gate_message = (
+        "DirectedScript exists but failed quality thresholds.\n"
+        "Run direct-script again with a stronger provider, or use --allow-unapproved for testing only."
+    )
     source_type = "generated"
 
     if script_path:
+        parse_errors: list[str] = []
+
+        try:
+            directed = read_json(script_path, DirectedScript)
+        except Exception as exc:
+            parse_errors.append(f"DirectedScript: {exc}")
+        else:
+            if not directed.approved_for_scene_planning and not allow_unapproved:
+                console.print(f"[red]{strict_gate_message}[/red]")
+                raise typer.Exit(1)
+            if not directed.approved_for_scene_planning:
+                console.print(
+                    "[yellow]⚠ Testing mode: using unapproved DirectedScript "
+                    "(--allow-unapproved set).[/yellow]"
+                )
+            script = _directed_to_humanized(directed)
+            source_type = "directed"
+            console.print(f"[bold cyan]Planning {num_scenes} scenes for: {script.title}[/bold cyan]")
+            console.print(f"  Script source: [yellow]{source_type}[/yellow]")
+            scene_plan = _plan(script, num_scenes=num_scenes)
+            filename = f"{scene_plan.id}_{format_datetime(scene_plan.created_at)}.json"
+            out_path = SCENES_DIR / filename
+            write_json(out_path, scene_plan)
+            console.print(f"  [green]✓[/green] Scene plan saved → {out_path.name}")
+            console.print(f"  Scenes: {scene_plan.total_scenes}")
+            console.print("\nNext: [yellow]python -m workers.cli compose-video[/yellow]")
+            return
+
         try:
             script = read_json(script_path, HumanizedScript)
             source_type = "humanized"
-        except Exception:
-            script = read_json(script_path, StoryScript)
-            source_type = "generated"
+        except Exception as exc:
+            parse_errors.append(f"HumanizedScript: {exc}")
+            try:
+                script = read_json(script_path, StoryScript)
+                source_type = "generated"
+            except Exception as story_exc:
+                parse_errors.append(f"StoryScript: {story_exc}")
+                console.print(f"[red]Could not parse script file: {script_path}[/red]")
+                for err in parse_errors:
+                    console.print(f"  [dim]- {err}[/dim]")
+                raise typer.Exit(1) from None
     else:
-        # 1. Try approved DirectedScript first
         directed_found = latest_file(DIRECTED_SCRIPTS_DIR, pattern="directed_*.json")
-        script = None
         if directed_found:
             try:
                 ds = read_json(directed_found, DirectedScript)
-                if ds.approved_for_scene_planning or allow_unapproved:
-                    if not ds.approved_for_scene_planning:
-                        console.print(
-                            "[yellow]⚠ Using unapproved DirectedScript (--allow-unapproved set).[/yellow]"
-                        )
-                    # Wrap as HumanizedScript for scene planner
-                    script = HumanizedScript(
-                        id=ds.id,
-                        script_id=ds.source_script_id,
-                        title=ds.title,
-                        category=ds.category,
-                        hook_line=ds.hook_line,
-                        full_script_telugu=ds.directed_telugu_script,
-                    )
-                    source_type = "directed"
-                else:
-                    console.print(
-                        "[yellow]⚠ Latest DirectedScript not approved for scene planning. "
-                        "Falling back to humanized/generated. Use --allow-unapproved to override.[/yellow]"
-                    )
-            except Exception:
-                pass
+            except Exception as exc:
+                console.print(f"[red]Could not parse DirectedScript: {directed_found.name}[/red]")
+                console.print(f"  [dim]{exc}[/dim]")
+                raise typer.Exit(1) from None
 
-        if script is None:
-            # 2. Try latest humanized script
+            if not ds.approved_for_scene_planning and not allow_unapproved:
+                console.print(f"[red]{strict_gate_message}[/red]")
+                raise typer.Exit(1)
+
+            if not ds.approved_for_scene_planning:
+                console.print(
+                    "[yellow]⚠ Testing mode: using unapproved DirectedScript "
+                    "(--allow-unapproved set).[/yellow]"
+                )
+
+            script = _directed_to_humanized(ds)
+            source_type = "directed"
+        else:
             found = latest_file(SCRIPTS_DIR)
             if not found:
                 console.print("[red]No scripts found. Run generate-script first.[/red]")
@@ -328,9 +372,15 @@ def plan_scenes(
             try:
                 script = read_json(found, HumanizedScript)
                 source_type = "humanized"
-            except Exception:
-                script = read_json(found, StoryScript)
-                source_type = "generated"
+            except Exception as humanized_exc:
+                try:
+                    script = read_json(found, StoryScript)
+                    source_type = "generated"
+                except Exception as story_exc:
+                    console.print(f"[red]Could not parse latest script file: {found.name}[/red]")
+                    console.print(f"  [dim]HumanizedScript: {humanized_exc}[/dim]")
+                    console.print(f"  [dim]StoryScript: {story_exc}[/dim]")
+                    raise typer.Exit(1) from None
 
     console.print(f"[bold cyan]Planning {num_scenes} scenes for: {script.title}[/bold cyan]")
     console.print(f"  Script source: [yellow]{source_type}[/yellow]")
@@ -391,10 +441,11 @@ def create_review(
     """Create a human review package (JSON + Markdown) for the latest draft."""
     from workers.config import DIRECTED_SCRIPTS_DIR, SCENES_DIR, SCRIPTS_DIR, VIDEOS_OUT_DIR
     from workers.io_utils import latest_file, read_json
-    from workers.models import DirectedScript, HumanizedScript, ScenePlan, StoryScript
+    from workers.models import DirectedScript, HumanizedScript, ScenePlan, StoryScript, VideoDraft
     from workers.review_queue import create_review as _create_review
     from workers.script_quality import validate_script
 
+    directed_path = latest_file(DIRECTED_SCRIPTS_DIR, pattern="directed_*.json")
     latest_script_path = latest_file(SCRIPTS_DIR)
     latest_scenes_path = latest_file(SCENES_DIR)
     latest_video_path = latest_file(VIDEOS_OUT_DIR)
@@ -408,43 +459,76 @@ def create_review(
     youtube_hashtags: list[str] = []
     score_breakdown: dict = {}
     repeatability_warnings: list[str] = []
+    directed_script_info: dict | None = None
+    script_source = "generated"
+    selected_script_path: Path | None = None
 
-    script_obj = None
+    script_obj: HumanizedScript | StoryScript | None = None
     base_script_obj: StoryScript | None = None
-    if latest_script_path:
+
+    orig_path = latest_file(SCRIPTS_DIR, pattern="script_*.json")
+    if orig_path:
+        try:
+            base_script_obj = read_json(orig_path, StoryScript)
+        except Exception as exc:
+            console.print(f"[yellow]⚠ Could not parse base StoryScript metadata: {orig_path.name}[/yellow]")
+            console.print(f"  [dim]{exc}[/dim]")
+
+    if directed_path:
+        try:
+            ds = read_json(directed_path, DirectedScript)
+        except Exception as exc:
+            console.print(f"[red]Could not parse DirectedScript: {directed_path.name}[/red]")
+            console.print(f"  [dim]{exc}[/dim]")
+            raise typer.Exit(1) from None
+
+        script_obj = _directed_to_humanized(ds)
+        selected_script_path = directed_path
+        script_source = "directed"
+        draft_title = draft_title or ds.title
+        hook = ds.hook_line
+        category = ds.category if isinstance(ds.category, str) else ds.category.value
+        script_text = ds.directed_telugu_script
+        directed_script_info = {
+            "provider": ds.director_provider,
+            "quality_score": ds.quality_score,
+            "telugu_authenticity_score": ds.telugu_authenticity_score,
+            "continuity_score": ds.continuity_score,
+            "issues_fixed": ds.issues_fixed,
+            "remaining_issues": ds.remaining_issues,
+            "recommendation": ds.recommendation,
+            "approved_for_scene_planning": ds.approved_for_scene_planning,
+        }
+    elif latest_script_path:
         try:
             script_obj = read_json(latest_script_path, HumanizedScript)
-        except Exception:
+            script_source = "humanized"
+        except Exception as humanized_exc:
             try:
                 script_obj = read_json(latest_script_path, StoryScript)
-            except Exception:
-                pass
+            except Exception as story_exc:
+                console.print(f"[red]Could not parse latest script file: {latest_script_path.name}[/red]")
+                console.print(f"  [dim]HumanizedScript: {humanized_exc}[/dim]")
+                console.print(f"  [dim]StoryScript: {story_exc}[/dim]")
+                raise typer.Exit(1) from None
+        selected_script_path = latest_script_path
 
-    if script_obj:
         draft_title = draft_title or script_obj.title
         hook = script_obj.hook_line
         category = script_obj.category if isinstance(script_obj.category, str) else script_obj.category.value
         script_text = script_obj.full_script_telugu
-        if hasattr(script_obj, "youtube_title"):
-            youtube_title = script_obj.youtube_title  # type: ignore[union-attr]
-            youtube_description = script_obj.youtube_description  # type: ignore[union-attr]
-            youtube_hashtags = script_obj.youtube_hashtags  # type: ignore[union-attr]
-
-    # If we have a humanized script, also load the original StoryScript for YouTube metadata + scoring
-    if isinstance(script_obj, HumanizedScript):
-        orig_path = latest_file(SCRIPTS_DIR, pattern="script_*.json")
-        if orig_path:
-            try:
-                base_script_obj = read_json(orig_path, StoryScript)
-                if not youtube_title:
-                    youtube_title = base_script_obj.youtube_title
-                    youtube_description = base_script_obj.youtube_description
-                    youtube_hashtags = base_script_obj.youtube_hashtags
-            except Exception:
-                pass
+        if isinstance(script_obj, StoryScript):
+            youtube_title = script_obj.youtube_title
+            youtube_description = script_obj.youtube_description
+            youtube_hashtags = script_obj.youtube_hashtags
 
     if not draft_title:
         draft_title = "Untitled Draft"
+
+    if base_script_obj and not youtube_title:
+        youtube_title = base_script_obj.youtube_title
+        youtube_description = base_script_obj.youtube_description
+        youtube_hashtags = base_script_obj.youtube_hashtags
 
     # Build scene table for markdown
     scene_table = ""
@@ -458,17 +542,18 @@ def create_review(
                     f"| {s.scene_number} | {s.timestamp_range} | {s.location} | {s.mood} | {s.camera_angle} |"
                 )
             scene_table = "\n".join(rows)
-        except Exception:
-            pass
+        except Exception as exc:
+            console.print(f"[yellow]⚠ Could not parse scene plan: {latest_scenes_path.name}[/yellow]")
+            console.print(f"  [dim]{exc}[/dim]")
 
     video_path = None
     if latest_video_path:
         try:
-            from workers.models import VideoDraft
             vd = read_json(latest_video_path, VideoDraft)
             video_path = vd.video_path
-        except Exception:
-            pass
+        except Exception as exc:
+            console.print(f"[yellow]⚠ Could not parse video draft: {latest_video_path.name}[/yellow]")
+            console.print(f"  [dim]{exc}[/dim]")
 
     # Score the script and run quality validation
     script_quality_dict: dict = {}
@@ -489,36 +574,13 @@ def create_review(
             sc = score_script(scoring_target, repeatability_warnings=repeatability_warnings)
             score_breakdown = sc.to_dict()["score_breakdown"]
 
-    # Load DirectedScript info if available
-    directed_script_info: dict | None = None
-    script_source = "generated"
-    if isinstance(script_obj, HumanizedScript):
-        script_source = "humanized"
-    directed_path = latest_file(DIRECTED_SCRIPTS_DIR, pattern="directed_*.json")
-    if directed_path:
-        try:
-            ds = read_json(directed_path, DirectedScript)
-            directed_script_info = {
-                "provider": ds.director_provider,
-                "quality_score": ds.quality_score,
-                "telugu_authenticity_score": ds.telugu_authenticity_score,
-                "continuity_score": ds.continuity_score,
-                "issues_fixed": ds.issues_fixed,
-                "remaining_issues": ds.remaining_issues,
-                "recommendation": ds.recommendation,
-                "approved_for_scene_planning": ds.approved_for_scene_planning,
-            }
-            script_source = "directed"
-        except Exception:
-            pass
-
     console.print(f"[bold cyan]Creating review package: {draft_title}[/bold cyan]")
 
     review, md_path = _create_review(
         title=draft_title,
         category=category,
         hook=hook,
-        script_path=str(latest_script_path) if latest_script_path else None,
+        script_path=str(selected_script_path) if selected_script_path else None,
         scene_plan_path=str(latest_scenes_path) if latest_scenes_path else None,
         video_path=video_path,
         script_text=script_text,

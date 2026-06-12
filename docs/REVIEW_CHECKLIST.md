@@ -33,7 +33,7 @@ Check the **Script Director** section in the review Markdown (`content/review/<i
 
 - [ ] **Script Source** is shown (directed / humanized / generated) — prefer "directed" with approved=True
 - [ ] If directed: quality_score ≥ 88, authenticity ≥ 90, continuity ≥ 90
-- [ ] If not approved: decide whether to re-run `direct-script` or proceed manually
+- [ ] If directed and not approved: treat it as `needs_script_rewrite`, re-run `direct-script`, and do not treat it as review-ready
 - [ ] **Final Publish Recommendation** is `draft_ready_for_human_review` (not `needs_script_rewrite` or `reject`)
 
 ## Final Gates

@@ -16,6 +16,69 @@ from workers.models import (
 )
 
 
+def _has_hard_safety_issue(script_quality: dict) -> bool:
+    return any(
+        "Monetization risk" in issue or "real-person" in issue.lower()
+        for issue in script_quality.get("issues", [])
+    )
+
+
+def _has_banned_ending(script_quality: dict) -> bool:
+    return any("Banned ending pattern found" in issue for issue in script_quality.get("issues", []))
+
+
+def _has_blocking_english_issues(telugu_quality: dict) -> bool:
+    return bool(telugu_quality.get("english_word_issues") or telugu_quality.get("suggested_replacements"))
+
+
+def _final_publish_recommendation(
+    script_quality: dict,
+    telugu_quality: dict,
+    continuity: dict,
+    directed_script_info: dict | None,
+) -> tuple[str, str]:
+    hard_block = _has_hard_safety_issue(script_quality)
+    banned_ending = _has_banned_ending(script_quality)
+    english_block = _has_blocking_english_issues(telugu_quality)
+
+    if directed_script_info:
+        strict_failures = [
+            directed_script_info.get("recommendation") != "approve_candidate",
+            not bool(directed_script_info.get("approved_for_scene_planning")),
+            directed_script_info.get("quality_score", 0) < 88,
+            directed_script_info.get("telugu_authenticity_score", 0) < 90,
+            directed_script_info.get("continuity_score", 0) < 90,
+            english_block,
+            banned_ending,
+            hard_block,
+        ]
+        if any(strict_failures):
+            return (
+                "needs_script_rewrite",
+                "🟡 **NEEDS SCRIPT REWRITE** — DirectedScript failed the strict Script Director gate.",
+            )
+        return (
+            "draft_ready_for_human_review",
+            "🟢 **DRAFT READY FOR HUMAN REVIEW** — DirectedScript passed the strict Script Director gate.",
+        )
+
+    if hard_block:
+        return ("reject", "🔴 **REJECT** — Hard safety block found. Do not publish.")
+
+    final_quality = script_quality.get("quality_score", 0)
+    final_continuity = continuity.get("continuity_score", 0)
+    if final_quality >= 75 and final_continuity >= 65 and not banned_ending and not english_block:
+        return (
+            "draft_ready_for_human_review",
+            "🟢 **DRAFT READY FOR HUMAN REVIEW** — Human review is still mandatory.",
+        )
+
+    return (
+        "needs_script_rewrite",
+        "🟡 **NEEDS SCRIPT REWRITE** — Improve the script and re-run the pipeline.",
+    )
+
+
 def _build_review_markdown(
     review: ReviewStatus,
     script_text: str = "",
@@ -171,28 +234,12 @@ def _build_review_markdown(
     # ── Script Source section ─────────────────────────────────────────────────
     source_md = f"\n## Script Source\n\nScript used for this review: **{script_source}**\n"
 
-    # ── Final Publish Recommendation ─────────────────────────────────────────
-    hard_blocks = False
-    final_quality = 0
-    approved_directed = False
-    if script_quality:
-        final_quality = script_quality.get("quality_score", 0)
-        hard_blocks = any(
-            "Monetization risk" in i or "real-person" in i.lower()
-            for i in script_quality.get("issues", [])
-        )
-    if directed_script_info:
-        approved_directed = bool(directed_script_info.get("approved_for_scene_planning"))
-
-    if hard_blocks:
-        final_rec = "reject"
-        final_rec_label = "🔴 **REJECT** — Hard safety block found. Do not publish."
-    elif approved_directed or final_quality >= 75:
-        final_rec = "draft_ready_for_human_review"
-        final_rec_label = "🟢 **DRAFT READY FOR HUMAN REVIEW** — Meets quality threshold."
-    else:
-        final_rec = "needs_script_rewrite"
-        final_rec_label = "🟡 **NEEDS SCRIPT REWRITE** — Quality below threshold (75). Improve and re-run."
+    final_rec, final_rec_label = _final_publish_recommendation(
+        script_quality=script_quality,
+        telugu_quality=telugu_quality,
+        continuity=continuity,
+        directed_script_info=directed_script_info,
+    )
 
     final_rec_md = f"\n## Final Publish Recommendation\n\n{final_rec_label}\n\n> `{final_rec}`\n"
 

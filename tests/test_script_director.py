@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 
 import pytest
+from typer.testing import CliRunner
 
 from workers.models import ContentCategory, DirectedScript, HumanizedScript, StoryScript
+
+runner = CliRunner()
 
 # ── Helper fixtures ──────────────────────────────────────────────────────────
 
@@ -182,6 +185,33 @@ def test_direct_script_best_attempt_selected():
     assert 0 <= result.quality_score <= 100
 
 
+def test_direct_script_mock_happy_path_reaches_approval():
+    """Mock provider should produce at least one deterministic approve_candidate path."""
+    from workers.script_director import direct_script
+
+    script = StoryScript(
+        id="script_happy",
+        idea_id="idea_happy",
+        title="Happy Path",
+        category=ContentCategory.MIDNIGHT_MYSTERY,
+        hook_line="ఆ రాత్రి గుండె ఆగిపోయింది.",
+        full_script_telugu=(
+            "ఆ రాత్రి గుండె ఆగిపోయింది.\n\n"
+            "రవి పాత ఇంటి ముందు ఆగాడు. తలుపు కింద ఒక ఉత్తరం కనిపించింది.\n\n"
+            "కానీ అతను దాన్ని వెంటనే తెరవలేదు."
+        ),
+        estimated_duration_seconds=55,
+    )
+
+    result = direct_script(script, provider_name="mock", max_attempts=1)
+
+    assert result.quality_score >= 88
+    assert result.telugu_authenticity_score >= 90
+    assert result.continuity_score >= 90
+    assert result.recommendation == "approve_candidate"
+    assert result.approved_for_scene_planning is True
+
+
 # ── TASK 8: plan-scenes DirectedScript preference ───────────────────────────
 
 def test_plan_scenes_prefers_directed(tmp_path, monkeypatch):
@@ -241,6 +271,158 @@ def test_plan_scenes_skips_unapproved_directed(tmp_path):
 
     loaded = read_json(directed_dir / "directed_notapproved.json", DirectedScript)
     assert loaded.approved_for_scene_planning is False
+
+
+def test_plan_scenes_blocks_failed_directed_script(tmp_path, monkeypatch):
+    """plan-scenes should fail hard when a DirectedScript exists but is unapproved."""
+    from workers.cli import app
+    from workers.io_utils import write_json
+
+    directed_dir = tmp_path / "scripts" / "directed"
+    scripts_dir = tmp_path / "scripts"
+    scenes_dir = tmp_path / "scenes"
+    directed_dir.mkdir(parents=True)
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    scenes_dir.mkdir(parents=True, exist_ok=True)
+
+    write_json(
+        directed_dir / "directed_fail.json",
+        DirectedScript(
+            id="directed_fail",
+            source_script_id="script_1",
+            title="Blocked Story",
+            category=ContentCategory.MIDNIGHT_MYSTERY,
+            hook_line="ఆ రాత్రి గుండె ఆగిపోయింది.",
+            directed_telugu_script="ఆ రాత్రి నిజం బయటికి వచ్చింది.",
+            recommendation="needs_rewrite",
+            approved_for_scene_planning=False,
+        ),
+    )
+    write_json(scripts_dir / "humanized_1.json", _make_humanized())
+
+    monkeypatch.setattr("workers.config.DIRECTED_SCRIPTS_DIR", directed_dir)
+    monkeypatch.setattr("workers.config.SCRIPTS_DIR", scripts_dir)
+    monkeypatch.setattr("workers.config.SCENES_DIR", scenes_dir)
+
+    result = runner.invoke(app, ["plan-scenes"])
+
+    assert result.exit_code == 1
+    assert "DirectedScript exists but failed quality thresholds." in result.output
+    assert "allow-unapproved" in result.output
+
+
+def test_plan_scenes_allow_unapproved_is_testing_mode(tmp_path, monkeypatch):
+    """plan-scenes --allow-unapproved should still work but clearly label testing mode."""
+    from workers.cli import app
+    from workers.io_utils import write_json
+
+    directed_dir = tmp_path / "scripts" / "directed"
+    scripts_dir = tmp_path / "scripts"
+    scenes_dir = tmp_path / "scenes"
+    directed_dir.mkdir(parents=True)
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    scenes_dir.mkdir(parents=True, exist_ok=True)
+
+    write_json(
+        directed_dir / "directed_fail.json",
+        DirectedScript(
+            id="directed_fail",
+            source_script_id="script_1",
+            title="Testing Story",
+            category=ContentCategory.MIDNIGHT_MYSTERY,
+            hook_line="ఆ రాత్రి గుండె ఆగిపోయింది.",
+            directed_telugu_script=(
+                "ఆ రాత్రి గుండె ఆగిపోయింది.\n\n"
+                "రవి తలుపు దగ్గరకు వెళ్లాడు.\n\n"
+                "ఉత్తరం అతని కాళ్ల దగ్గర ఆగింది.\n\n"
+                "చివరికి అదే నిజం చెప్పింది."
+            ),
+            recommendation="needs_rewrite",
+            approved_for_scene_planning=False,
+        ),
+    )
+
+    monkeypatch.setattr("workers.config.DIRECTED_SCRIPTS_DIR", directed_dir)
+    monkeypatch.setattr("workers.config.SCRIPTS_DIR", scripts_dir)
+    monkeypatch.setattr("workers.config.SCENES_DIR", scenes_dir)
+
+    result = runner.invoke(app, ["plan-scenes", "--allow-unapproved"])
+
+    assert result.exit_code == 0
+    assert "Testing mode: using unapproved DirectedScript" in result.output
+    assert "Script source: directed" in result.output
+
+
+def test_create_review_uses_directed_script_as_final_source(tmp_path, monkeypatch):
+    """create-review should use DirectedScript text/path when one exists."""
+    from workers.cli import app
+    from workers.io_utils import read_json, write_json
+    from workers.models import ReviewStatus
+
+    scripts_dir = tmp_path / "scripts"
+    directed_dir = scripts_dir / "directed"
+    review_dir = tmp_path / "review"
+    scenes_dir = tmp_path / "scenes"
+    videos_dir = tmp_path / "videos"
+    analytics_dir = tmp_path / "analytics"
+    scripts_dir.mkdir(parents=True)
+    directed_dir.mkdir(parents=True)
+    review_dir.mkdir(parents=True)
+    scenes_dir.mkdir(parents=True)
+    videos_dir.mkdir(parents=True)
+    analytics_dir.mkdir(parents=True)
+
+    story_script = StoryScript(
+        id="script_base",
+        idea_id="idea_base",
+        title="Base Story",
+        category=ContentCategory.MIDNIGHT_MYSTERY,
+        hook_line="ఆ రాత్రి గుండె ఆగిపోయింది.",
+        full_script_telugu="పాత స్క్రిప్ట్.",
+        youtube_title="YT Title",
+        youtube_description="YT Description",
+        youtube_hashtags=["One", "Two"],
+    )
+    directed_script = DirectedScript(
+        id="directed_final",
+        source_script_id=story_script.id,
+        title="Directed Story",
+        category=ContentCategory.MIDNIGHT_MYSTERY,
+        hook_line="ఆ రాత్రి గుండె ఆగిపోయింది.",
+        directed_telugu_script="ఇది చివరి దర్శకత్వ స్క్రిప్ట్.",
+        director_provider="mock",
+        quality_score=91,
+        telugu_authenticity_score=96,
+        continuity_score=93,
+        recommendation="approve_candidate",
+        approved_for_scene_planning=True,
+    )
+
+    write_json(scripts_dir / "script_base.json", story_script)
+    write_json(scripts_dir / "humanized_base.json", _make_humanized("ఇది మనుషుల వర్షన్."))
+    write_json(directed_dir / "directed_final.json", directed_script)
+
+    monkeypatch.setattr("workers.config.SCRIPTS_DIR", scripts_dir)
+    monkeypatch.setattr("workers.config.DIRECTED_SCRIPTS_DIR", directed_dir)
+    monkeypatch.setattr("workers.config.REVIEW_DIR", review_dir)
+    monkeypatch.setattr("workers.config.SCENES_DIR", scenes_dir)
+    monkeypatch.setattr("workers.config.VIDEOS_OUT_DIR", videos_dir)
+    monkeypatch.setattr("workers.config.VIDEOS_CSV", analytics_dir / "videos.csv")
+    monkeypatch.setattr("workers.review_queue.REVIEW_DIR", review_dir)
+    monkeypatch.setattr("workers.review_queue.VIDEOS_CSV", analytics_dir / "videos.csv")
+
+    result = runner.invoke(app, ["create-review"])
+
+    assert result.exit_code == 0
+    review_json = next(review_dir.glob("review_*.json"))
+    review_md = review_json.with_suffix(".md")
+    review = read_json(review_json, ReviewStatus)
+    md_content = review_md.read_text(encoding="utf-8")
+
+    assert review.script_path == str(directed_dir / "directed_final.json")
+    assert "ఇది చివరి దర్శకత్వ స్క్రిప్ట్." in md_content
+    assert "ఇది మనుషుల వర్షన్." not in md_content
+    assert "Script used for this review: **directed**" in md_content
 
 
 # ── TASK 9: Review Markdown sections ────────────────────────────────────────

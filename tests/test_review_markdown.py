@@ -91,6 +91,77 @@ class TestReviewMarkdown:
         assert "Repeatability" in md
         assert "Category repeated 4 times." in md
 
+    def test_directed_script_failure_never_marks_review_ready(self):
+        review = _make_review()
+        md = _build_review_markdown(
+            review,
+            script_quality={
+                "passed": True,
+                "quality_score": 92,
+                "issues": [],
+                "suggestions": [],
+                "publish_recommendation": "approve_candidate",
+            },
+            telugu_quality={
+                "telugu_authenticity_score": 100,
+                "english_word_issues": [],
+                "suggested_replacements": [],
+                "suggestions": [],
+            },
+            continuity={
+                "continuity_score": 92,
+                "issues": [],
+                "suggestions": [],
+            },
+            directed_script_info={
+                "provider": "mock",
+                "quality_score": 92,
+                "telugu_authenticity_score": 100,
+                "continuity_score": 68,
+                "issues_fixed": [],
+                "remaining_issues": ["Final twist does not echo the hook."],
+                "recommendation": "needs_rewrite",
+                "approved_for_scene_planning": False,
+            },
+        )
+        assert "needs_script_rewrite" in md
+        assert "draft_ready_for_human_review" not in md
+
+    def test_directed_script_success_marks_review_ready(self):
+        review = _make_review()
+        md = _build_review_markdown(
+            review,
+            script_quality={
+                "passed": True,
+                "quality_score": 91,
+                "issues": [],
+                "suggestions": [],
+                "publish_recommendation": "approve_candidate",
+            },
+            telugu_quality={
+                "telugu_authenticity_score": 95,
+                "english_word_issues": [],
+                "suggested_replacements": [],
+                "suggestions": [],
+            },
+            continuity={
+                "continuity_score": 94,
+                "issues": [],
+                "suggestions": [],
+            },
+            directed_script_info={
+                "provider": "mock",
+                "quality_score": 91,
+                "telugu_authenticity_score": 95,
+                "continuity_score": 94,
+                "issues_fixed": ["Hook now connects to the clue."],
+                "remaining_issues": [],
+                "recommendation": "approve_candidate",
+                "approved_for_scene_planning": True,
+            },
+        )
+        assert "draft_ready_for_human_review" in md
+
 
 class TestCreateReview:
     def test_creates_json_and_markdown(self, tmp_path):
