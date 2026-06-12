@@ -1,6 +1,16 @@
 # Roadmap — Midnight Telugu
 
-## v1.2 — Script Director Gate (Current)
+## v1.3 — Blueprint-First Story Engine (Current)
+
+- [x] StoryBlueprint model and `content/blueprints/` storage
+- [x] `build-blueprint` CLI step between idea generation and script generation
+- [x] Blueprint validator for protagonist, POV, clue payoff, final twist, and location limits
+- [x] Narrative fact extractor and narrative validator for script-to-blueprint alignment
+- [x] Script Director approval now requires narrative ≥ 90 and zero hard failures
+- [x] Review package includes blueprint and narrative gate details
+- [x] 151 passing tests
+
+## v1.2 — Script Director Gate
 
 - [x] Script Director gate — automated Telugu narration improvement loop (Phase 6)
 - [x] Provider abstraction — mock + OpenAI backends (`workers/providers/`)

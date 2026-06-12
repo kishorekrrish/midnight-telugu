@@ -6,6 +6,7 @@ All operations run locally. No external API required.
 
 ```
 python -m workers.cli generate-ideas --count 5
+python -m workers.cli build-blueprint
 python -m workers.cli generate-script
 python -m workers.cli humanize-script
 python -m workers.cli direct-script
@@ -16,6 +17,22 @@ python -m workers.cli create-review
 
 All outputs go to `content/` and `outputs/`. Human reviews and approves. No upload.
 If a DirectedScript exists and fails approval, `plan-scenes` stops by default unless `--allow-unapproved` is used for testing.
+
+### Locked Narrative Flow
+
+The core story engine is now blueprint-first:
+
+1. `generate-ideas` creates broad story opportunities.
+2. `build-blueprint` converts an idea into one locked protagonist, POV, device, clue set, reveal, twist, and max two locations.
+3. `generate-script` can run only from an approved blueprint.
+4. `direct-script` enforces the narrative gate before scene planning.
+
+The narrative gate blocks scripts with failures such as:
+- protagonist or POV drift
+- missing device/clue payoff
+- vague reveal or weak final twist
+- unplanned characters, objects, or locations
+- summary-style narration
 
 ## v2: Real Provider Integration (Planned)
 

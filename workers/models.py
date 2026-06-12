@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -59,6 +60,7 @@ class StoryIdea(BaseModel):
 class StoryScript(BaseModel):
     id: str
     idea_id: str
+    blueprint_id: str | None = None
     title: str
     category: ContentCategory
     hook_line: str
@@ -91,11 +93,15 @@ class HumanizedScript(BaseModel):
 class DirectedScript(BaseModel):
     id: str
     source_script_id: str
+    blueprint_id: str = ""
     title: str
     category: ContentCategory
     hook_line: str
     directed_telugu_script: str
     director_provider: str = "mock"
+    narrative_score: int = 0
+    hard_failures: list[str] = Field(default_factory=list)
+    narrative_facts: dict = Field(default_factory=dict)
     quality_score: int = 0
     telugu_authenticity_score: int = 0
     continuity_score: int = 0
@@ -239,3 +245,41 @@ class PerformanceRecord(BaseModel):
     retention_percentage: float = 0.0
     subscribers_gained: int = 0
     notes: str = ""
+
+
+class StoryBlueprint(BaseModel):
+    id: str
+    idea_id: str
+    title: str
+    category: ContentCategory
+    protagonist_name: str
+    protagonist_role: str
+    point_of_view: Literal["first_person", "third_person"]
+    hook: str
+    central_question: str
+    primary_story_device: str
+    primary_clue: str
+    supporting_clues: list[str] = Field(default_factory=list)
+    setup: str
+    escalation: str
+    reveal: str
+    final_twist: str
+    final_line: str
+    locations: list[str] = Field(default_factory=list)
+    forbidden_elements: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+    model_config = {"use_enum_values": True}
+
+
+class NarrativeFacts(BaseModel):
+    protagonist_names: list[str] = Field(default_factory=list)
+    detected_point_of_view: str = "unknown"
+    major_objects: list[str] = Field(default_factory=list)
+    clues: list[str] = Field(default_factory=list)
+    locations: list[str] = Field(default_factory=list)
+    explicit_reveal: str = ""
+    final_twist: str = ""
+    unresolved_promises: list[str] = Field(default_factory=list)
+    meta_narration_hits: list[str] = Field(default_factory=list)

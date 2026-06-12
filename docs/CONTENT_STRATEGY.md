@@ -31,6 +31,20 @@ Target: Telugu-speaking audiences (Andhra Pradesh, Telangana, diaspora) aged 18�
   4. Twist/Reveal (40–52s): Unexpected turn
   5. Closing Line (52–60s): Emotional landing or open question
 
+## Blueprint Rules
+
+Before script generation, every idea must be reduced to one locked blueprint:
+
+- One protagonist only
+- One consistent POV only
+- One primary story device
+- One primary clue with explicit payoff
+- At most two locations
+- A reveal that clearly answers the central question
+- A final twist and final line that feel earned, not generic
+
+This is how the system avoids the common AI-story failure mode of introducing random objects, extra characters, or a twist that does not pay off the hook.
+
 ## Automated Quality Scoring
 
 Every generated idea and script is automatically scored across 8 dimensions:
@@ -55,6 +69,7 @@ The **repeatability checker** (`story_memory.py`) scans all prior content to war
 ## Quality Bar
 
 - Every story must feel like a real person telling it, not a content farm.
+- The hook, reveal, and final twist must all belong to the same story spine.
 - No repetitive AI patterns (e.g., "in a shocking turn of events").
 - No cheap moral-story spam.
 - No celebrity references or real-person impersonation.

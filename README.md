@@ -6,12 +6,14 @@ AI-assisted Telugu YouTube Shorts draft production system for mystery, crime, ho
 
 ---
 
-## What This Does (v1.2 — Script Director Gate)
+## What This Does (v1.3 — Blueprint-First Story Engine)
 
-New in v1.2:
-- **Script Director Gate** — automated Telugu narration improvement using a director prompt (Phase 6). Runs after humanize-script and before plan-scenes.
+New in v1.3:
+- **Blueprint-first pipeline** — ideas now become a locked `StoryBlueprint` before script generation.
+- **Narrative gate** — Script Director validates protagonist, POV, device/clue payoff, reveal clarity, twist connection, and location discipline before scene planning.
+- **Blueprint artifacts** — approved blueprints are saved under `content/blueprints/`.
 - **Provider abstraction** — `mock` (no API keys) and `openai` providers. Default is always `mock`.
-- **Strict approval thresholds** — quality ≥ 88, Telugu authenticity ≥ 90, continuity ≥ 90, zero English issues.
+- **Strict approval thresholds** — narrative ≥ 90, quality ≥ 88, Telugu authenticity ≥ 90, continuity ≥ 90, zero hard failures.
 - **Directed Script JSON** — saved under `content/scripts/directed/`. Plan-scenes prefers approved directed scripts.
 - **Enhanced Review Markdown** — includes Script Director section, Script Source, and Final Publish Recommendation.
 
@@ -22,30 +24,32 @@ Quality additions over v1:
 - **Repeat Pattern Detector** — scans all prior content to warn when you're repeating twist types, categories, or locations
 - **Diverse Idea Generation** — all 10 content buckets are covered in every batch (no category spam)
 - **8 Script Structures** — cold open, object mystery, unreliable narrator, emotional reveal, etc.
+- **Idea-grounded Script Builder** — generated scripts now pull directly from each idea's hook, premise, and twist instead of relying on generic template beats
 - **Stronger Humanizer** — removes AI endings, splits long sentences, adds voiceover pacing
 - **Markdown Review Package** — every draft generates a human-readable `.md` file with full script, scene table, YouTube metadata, and approve/reject commands
 
 ## What This Does
 
 1. Generates original Telugu story ideas
-2. Writes a natural Telugu narration script
-3. Improves the script's Telugu flow (humanizer)
-4. Runs Script Director gate (automated quality improvement pass)
-5. Plans 6–10 cinematic scenes
-6. Composes a draft vertical video (FFmpeg)
-7. Creates a review package for Kishore to inspect
-8. Approves or rejects after human review
-9. Tracks performance manually
+2. Converts the idea into a locked story blueprint
+3. Writes a natural Telugu narration script from that blueprint
+4. Improves the script's Telugu flow (humanizer)
+5. Runs Script Director + narrative gate
+6. Plans 6–10 cinematic scenes
+7. Composes a draft vertical video (FFmpeg)
+8. Creates a review package for Kishore to inspect
+9. Approves or rejects after human review
+10. Tracks performance manually
 
 ### Script Director Gate
 
 The `direct-script` command runs an automated improvement loop:
-1. Validates the humanized script against all quality thresholds
+1. Validates the script against the approved blueprint and all quality thresholds
 2. Builds a director prompt with found issues and the `prompts/script_director.md` system prompt
 3. Calls a text provider (default: `mock`, optional: `openai`) to rewrite the script
 4. Re-validates and retries up to `--max-attempts` times (default: 3)
 5. Saves the best result as a `DirectedScript` JSON under `content/scripts/directed/`
-6. Sets `approved_for_scene_planning` if quality ≥ 88, authenticity ≥ 90, continuity ≥ 90, and zero English issues
+6. Sets `approved_for_scene_planning` only if the blueprint passes, hard failures are zero, and all score thresholds are met
 
 Plan-scenes automatically uses an approved DirectedScript when one exists. Use `--allow-unapproved` to bypass.
 If a DirectedScript exists but is not approved, `plan-scenes` now stops by default instead of silently falling back.
@@ -107,22 +111,25 @@ Run these commands in order:
 # Step 1: Generate 5 story ideas
 python -m workers.cli generate-ideas --count 5
 
-# Step 2: Generate a script from the latest idea
+# Step 2: Build a locked story blueprint from the latest idea
+python -m workers.cli build-blueprint
+
+# Step 3: Generate a script from the latest blueprint
 python -m workers.cli generate-script
 
-# Step 3: Humanize the script (improve Telugu naturalness)
+# Step 4: Humanize the script (improve Telugu naturalness)
 python -m workers.cli humanize-script
 
-# Step 4: Run the Script Director gate (automated quality improvement)
+# Step 5: Run the Script Director gate (automated quality improvement)
 python -m workers.cli direct-script
 
-# Step 5: Plan 7 cinematic scenes
+# Step 6: Plan 7 cinematic scenes
 python -m workers.cli plan-scenes
 
-# Step 6: Compose the video (dry-run if FFmpeg/assets missing)
+# Step 7: Compose the video (dry-run if FFmpeg/assets missing)
 python -m workers.cli compose-video
 
-# Step 7: Create the review package
+# Step 8: Create the review package
 python -m workers.cli create-review
 ```
 
@@ -188,6 +195,7 @@ Without keys, the system uses template-based mock generation and all commands st
 
 ```
 content/ideas/      ← Generated story ideas (JSON)
+content/blueprints/ ← Locked story blueprints (JSON)
 content/scripts/    ← Scripts and humanized scripts (JSON)
 content/scenes/     ← Scene plans (JSON)
 content/review/     ← Draft review packages (JSON)

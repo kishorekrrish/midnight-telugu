@@ -20,8 +20,8 @@ def _make_script(text: str, hook: str = "ఆ రాత్రి గుండె 
     )
 
 
-def _make_idea(category: str = "midnight_mystery") -> StoryIdea:
-    return StoryIdea(
+def _make_idea(category: str = "midnight_mystery", **kwargs) -> StoryIdea:
+    defaults = dict(
         id="idea_test",
         title="Test Idea",
         category=ContentCategory(category),
@@ -34,6 +34,8 @@ def _make_idea(category: str = "midnight_mystery") -> StoryIdea:
         emotional_core="mystery",
         visual_signature="dark_room",
     )
+    defaults.update(kwargs)
+    return StoryIdea(**defaults)
 
 
 # ── Banned endings ─────────────────────────────────────────────────────────
@@ -184,8 +186,42 @@ def test_generated_script_word_count():
     idea = _make_idea()
     script = generate_script(idea)
     words = script.full_script_telugu.split()
-    # Minimum 60 words from the generator; validator enforces 80+ separately
-    assert len(words) >= 60, f"Script too short: {len(words)} words"
+    assert len(words) >= 100, f"Script too short: {len(words)} words"
+
+
+def test_generated_script_uses_idea_premise_and_twist():
+    idea = StoryIdea(
+        id="idea_emotional",
+        title="అమ్మ చివరి కాల్",
+        category=ContentCategory.EMOTIONAL_SUSPENSE,
+        hook="అమ్మ చనిపోయిన తర్వాత ఆమె ఫోన్‌లో ఒక వాయిస్ మెమో కనిపించింది.",
+        premise="శ్యామ్ పాత చెరువు గట్టు దగ్గర దొరికిన బొమ్మను చూసి తన పుట్టుక గురించే అనుమానపడటం మొదలుపెడతాడు.",
+        twist="ఫోటో వెనక రాసిన ఒక్క వాక్యం వల్ల శ్యామ్ తన తండ్రి గురించి విన్నది మొత్తం అబద్ధమని తెలుస్తుంది.",
+        tone="emotional, suspenseful",
+    )
+
+    script = generate_script(idea)
+
+    assert "శ్యామ్" in script.full_script_telugu
+    assert "చెరువు" in script.full_script_telugu
+    assert "బొమ్మ" in script.full_script_telugu
+    assert "ఫోటో" in script.full_script_telugu
+    assert "తండ్రి" in script.full_script_telugu
+
+
+def test_generated_script_avoids_raw_english_markers():
+    idea = _make_idea(
+        hook="అర్థరాత్రి ఫోన్ మోగింది — కానీ ఆ నంబర్ ఎవరిదో తెలియదు.",
+        premise="రవి పాత గదిలో దొరికిన ఫోటోను చూసి ఆ కాల్‌తో దానికి సంబంధం ఉందేమో అనుకుంటాడు.",
+        twist="ఆ ఫోటోలో ఉన్న మనిషి చనిపోయాడని అనుకున్న వ్యక్తే అని తెలుస్తుంది.",
+    )
+
+    script = generate_script(idea)
+
+    lowered = script.full_script_telugu.lower()
+    forbidden = ["unknown", "call back", "not reachable", "sound", "photograph", "footprint"]
+    for token in forbidden:
+        assert token not in lowered, f"Found raw English token: {token}"
 
 
 # ── Review Markdown includes script quality section ───────────────────────

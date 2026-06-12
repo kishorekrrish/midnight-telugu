@@ -7,7 +7,13 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from workers.models import ContentCategory, DirectedScript, HumanizedScript, StoryScript
+from workers.models import (
+    ContentCategory,
+    DirectedScript,
+    HumanizedScript,
+    StoryBlueprint,
+    StoryScript,
+)
 
 runner = CliRunner()
 
@@ -43,6 +49,30 @@ def _make_humanized(text: str | None = None) -> HumanizedScript:
             "కానీ — ఆ photograph లో ఉన్న మనిషి రవి తండ్రి కాదు. వేరే మనిషి.\n\n"
             "ఆ తలుపు మళ్ళీ ఎప్పుడూ తెరవలేదు."
         ),
+    )
+
+
+def _make_blueprint() -> StoryBlueprint:
+    return StoryBlueprint(
+        id="blueprint_test001",
+        idea_id="idea_001",
+        title="Test Mystery",
+        category=ContentCategory.MIDNIGHT_MYSTERY,
+        protagonist_name="రవి",
+        protagonist_role="యువకుడు",
+        point_of_view="third_person",
+        hook="ఆ రాత్రి గుండె ఆగిపోయింది.",
+        central_question="ఆ రాత్రి దాచిన నిజం ఏమిటి?",
+        primary_story_device="పాత ఫోటో",
+        primary_clue="పాత ఫోటో",
+        supporting_clues=["తాళం చెవి"],
+        setup="రవి పాత ఇంటి తలుపు తెరిచాడు.",
+        escalation="పాత ఫోటో మళ్లీ మళ్లీ అతని ముందుకొచ్చింది. అదే జాడగా మారింది.",
+        reveal="పాత ఫోటోలో ఉన్న మనిషి రవి తండ్రి కాదు.",
+        final_twist="ఆ ఫోటోనే దాచిన కుటుంబ రహస్యాన్ని బయటపెట్టింది. పాత ఫోటో చివరి జవాబైంది.",
+        final_line="రవి చేతిలో ఇంకా పాత ఫోటోనే ఉంది. అదే చివరి సాక్ష్యం.",
+        locations=["పాత ఇల్లు", "లోపలి గది"],
+        forbidden_elements=["పాత చీర", "కొత్త పాత్ర"],
     )
 
 
@@ -126,7 +156,7 @@ def test_direct_script_mock_runs():
     from workers.script_director import DirectorResult, direct_script
 
     script = _make_script()
-    result = direct_script(script, provider_name="mock", max_attempts=1)
+    result = direct_script(script, blueprint=_make_blueprint(), provider_name="mock", max_attempts=1)
 
     assert isinstance(result, DirectorResult)
     assert result.directed_script
@@ -143,9 +173,13 @@ def test_direct_script_saves_result(tmp_path):
 
     result = DirectorResult(
         directed_script="ఆ రాత్రి గాలి ఆగింది. కానీ — ఎవరూ లేరు. ఇప్పటికీ అక్కడే ఉంది.",
+        blueprint_id="blueprint_test001",
         quality_score=70,
         telugu_authenticity_score=85,
         continuity_score=80,
+        narrative_score=65,
+        hard_failures=[],
+        narrative_facts={},
         issues_fixed=["Hook lacks tension."],
         remaining_issues=[],
         recommendation="needs_rewrite",
@@ -166,7 +200,7 @@ def test_direct_script_retry_stops():
     from workers.script_director import direct_script
 
     script = _make_script()
-    result = direct_script(script, provider_name="mock", max_attempts=2)
+    result = direct_script(script, blueprint=_make_blueprint(), provider_name="mock", max_attempts=2)
 
     assert result.attempts <= 2
 
@@ -177,7 +211,7 @@ def test_direct_script_best_attempt_selected():
 
     # Run with max_attempts=3 and check we get a valid result
     script = _make_humanized()
-    result = direct_script(script, provider_name="mock", max_attempts=3)
+    result = direct_script(script, blueprint=_make_blueprint(), provider_name="mock", max_attempts=3)
 
     # Result should always have a non-empty directed script
     assert result.directed_script.strip()
@@ -203,7 +237,7 @@ def test_direct_script_mock_happy_path_reaches_approval():
         estimated_duration_seconds=55,
     )
 
-    result = direct_script(script, provider_name="mock", max_attempts=1)
+    result = direct_script(script, blueprint=_make_blueprint(), provider_name="mock", max_attempts=1)
 
     assert result.quality_score >= 88
     assert result.telugu_authenticity_score >= 90
@@ -386,11 +420,15 @@ def test_create_review_uses_directed_script_as_final_source(tmp_path, monkeypatc
     directed_script = DirectedScript(
         id="directed_final",
         source_script_id=story_script.id,
+        blueprint_id="blueprint_cli_1",
         title="Directed Story",
         category=ContentCategory.MIDNIGHT_MYSTERY,
         hook_line="ఆ రాత్రి గుండె ఆగిపోయింది.",
         directed_telugu_script="ఇది చివరి దర్శకత్వ స్క్రిప్ట్.",
         director_provider="mock",
+        narrative_score=91,
+        hard_failures=[],
+        narrative_facts={},
         quality_score=91,
         telugu_authenticity_score=96,
         continuity_score=93,
@@ -433,6 +471,9 @@ def test_review_markdown_script_director_section(tmp_path):
 
     directed_info = {
         "provider": "mock",
+        "blueprint_id": "blueprint_1",
+        "narrative_score": 72,
+        "hard_failures": ["FINAL_TWIST_UNCLEAR"],
         "quality_score": 75,
         "telugu_authenticity_score": 88,
         "continuity_score": 82,

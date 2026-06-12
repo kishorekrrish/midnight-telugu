@@ -45,6 +45,9 @@ def _final_publish_recommendation(
         strict_failures = [
             directed_script_info.get("recommendation") != "approve_candidate",
             not bool(directed_script_info.get("approved_for_scene_planning")),
+            not bool(directed_script_info.get("blueprint_id")),
+            directed_script_info.get("narrative_score", 0) < 90,
+            bool(directed_script_info.get("hard_failures")),
             directed_script_info.get("quality_score", 0) < 88,
             directed_script_info.get("telugu_authenticity_score", 0) < 90,
             directed_script_info.get("continuity_score", 0) < 90,
@@ -213,13 +216,21 @@ def _build_review_markdown(
         }
         director_md = "\n## Script Director\n\n"
         director_md += f"**Provider:** {di.get('provider', 'mock')}\n\n"
+        if di.get("blueprint_id"):
+            director_md += f"**Blueprint:** `{di.get('blueprint_id')}`\n\n"
         director_md += (
+            f"**Narrative Score:** {di.get('narrative_score', 0)}/100\n\n"
             f"**Scores:** Quality {di.get('quality_score', 0)}/100 | "
             f"Authenticity {di.get('telugu_authenticity_score', 0)}/100 | "
             f"Continuity {di.get('continuity_score', 0)}/100\n\n"
         )
         director_md += f"**Recommendation:** {rec_icons.get(rec, rec)}\n\n"
         director_md += f"**Approved for scene planning:** {approved_icon}\n\n"
+        if di.get("hard_failures"):
+            director_md += "**Hard Failures:**\n"
+            for issue in di["hard_failures"][:6]:
+                director_md += f"- ❌ {issue}\n"
+            director_md += "\n"
         if di.get("issues_fixed"):
             director_md += "**Issues Fixed:**\n"
             for issue in di["issues_fixed"][:5]:

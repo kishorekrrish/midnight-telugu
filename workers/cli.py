@@ -93,48 +93,88 @@ def generate_ideas(
 
     console.print(tbl)
     console.print(f"\n[bold green]{len(ideas)} ideas saved to content/ideas/[/bold green]")
-    console.print("Next: [yellow]python -m workers.cli generate-script[/yellow]")
+    console.print("Next: [yellow]python -m workers.cli build-blueprint[/yellow]")
 
 
-@app.command("generate-script")
-def generate_script(
+@app.command("build-blueprint")
+def build_blueprint_cmd(
     idea_path: Path | None = typer.Option(None, "--idea", help="Path to idea JSON file"),
-    provider: str | None = typer.Option(None, "--provider", help="AI provider (default: mock)"),
-    variants: int = typer.Option(1, "--variants", help="Number of script variants to generate (1–5)"),
 ) -> None:
-    """Generate a Telugu script from a story idea (use --variants N to generate N versions)."""
-    from workers.config import IDEAS_DIR, SCRIPTS_DIR
-    from workers.idea_generator import generate_ideas as _gen
+    """Build and validate a StoryBlueprint from the latest StoryIdea."""
+    from workers.blueprint_validator import validate_blueprint
+    from workers.config import BLUEPRINTS_DIR, IDEAS_DIR
     from workers.io_utils import format_datetime, latest_file, read_json, write_json
     from workers.models import StoryIdea
-    from workers.script_generator import generate_script as _gen_script
-    from workers.script_quality import validate_script
-    from workers.story_scorer import score_script
+    from workers.story_blueprint import build_blueprint
 
-    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    BLUEPRINTS_DIR.mkdir(parents=True, exist_ok=True)
 
     if idea_path:
         idea = read_json(idea_path, StoryIdea)
     else:
         found = latest_file(IDEAS_DIR)
         if not found:
-            console.print("[yellow]No ideas found. Generating one first...[/yellow]")
-            ideas = _gen(count=1)
-            idea = ideas[0]
-            filename = f"{idea.id}_{format_datetime(idea.created_at)}.json"
-            write_json(IDEAS_DIR / filename, idea)
-        else:
-            idea = read_json(found, StoryIdea)
+            console.print("[red]No ideas found. Run generate-ideas first.[/red]")
+            raise typer.Exit(1)
+        idea = read_json(found, StoryIdea)
+
+    blueprint = build_blueprint(idea)
+    validation = validate_blueprint(blueprint)
+    filename = f"{blueprint.id}_{format_datetime(blueprint.created_at)}.json"
+    out_path = BLUEPRINTS_DIR / filename
+    write_json(out_path, blueprint)
+
+    console.print(f"[bold cyan]Building blueprint for: {blueprint.title}[/bold cyan]")
+    console.print(f"  [green]✓[/green] Blueprint saved → {out_path.name}")
+    console.print(f"  Score: {validation.score}/100")
+    if validation.hard_failures:
+        console.print(f"  [red]Hard failures:[/red] {', '.join(validation.hard_failures)}")
+        raise typer.Exit(1)
+    console.print("  [bold green]✓ Blueprint approved for script generation[/bold green]")
+    console.print("\nNext: [yellow]python -m workers.cli generate-script[/yellow]")
+
+
+@app.command("generate-script")
+def generate_script(
+    blueprint_path: Path | None = typer.Option(None, "--blueprint", help="Path to blueprint JSON file"),
+    provider: str | None = typer.Option(None, "--provider", help="AI provider (default: mock)"),
+    variants: int = typer.Option(1, "--variants", help="Number of script variants to generate (1–5)"),
+) -> None:
+    """Generate a Telugu script from an approved blueprint (use --variants N to generate N versions)."""
+    from workers.blueprint_validator import validate_blueprint
+    from workers.config import BLUEPRINTS_DIR, SCRIPTS_DIR
+    from workers.io_utils import format_datetime, latest_file, read_json, write_json
+    from workers.models import StoryBlueprint
+    from workers.script_generator import generate_script as _gen_script
+    from workers.script_quality import validate_script
+    from workers.story_scorer import score_script
+
+    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    if blueprint_path:
+        blueprint = read_json(blueprint_path, StoryBlueprint)
+    else:
+        found = latest_file(BLUEPRINTS_DIR, pattern="blueprint_*.json")
+        if not found:
+            console.print("[red]No blueprints found. Run build-blueprint first.[/red]")
+            raise typer.Exit(1)
+        blueprint = read_json(found, StoryBlueprint)
+
+    validation = validate_blueprint(blueprint)
+    if not validation.passed:
+        console.print("[red]Blueprint failed validation and cannot generate a script.[/red]")
+        console.print(f"  Hard failures: {', '.join(validation.hard_failures)}")
+        raise typer.Exit(1)
 
     variants = max(1, min(5, variants))
-    console.print(f"[bold cyan]Generating {variants} script variant(s) for: {idea.title}[/bold cyan]")
+    console.print(f"[bold cyan]Generating {variants} script variant(s) for: {blueprint.title}[/bold cyan]")
 
     best_script = None
     best_sq_score = -1
 
     for v in range(variants):
-        script = _gen_script(idea, provider=provider)
-        score = score_script(script, repeatability_warnings=getattr(idea, "repeatability_warnings", []))
+        script = _gen_script(blueprint, provider=provider)
+        score = score_script(script)
         sq = validate_script(script)
 
         variant_label = f"Variant {v + 1}" if variants > 1 else "Script"
@@ -209,14 +249,20 @@ def humanize_script(
 @app.command("direct-script")
 def direct_script_cmd(
     script_path: Path | None = typer.Option(None, "--script", help="Path to script/humanized JSON"),
+    blueprint_path: Path | None = typer.Option(None, "--blueprint", help="Path to blueprint JSON file"),
     provider: str | None = typer.Option(None, "--provider", help="Provider: mock or openai"),
     max_attempts: int = typer.Option(3, "--max-attempts", help="Max retry attempts"),
     strict: bool = typer.Option(False, "--strict", help="Fail if thresholds not met"),
 ) -> None:
     """Run the Script Director gate to improve and validate a Telugu script."""
-    from workers.config import DIRECTED_SCRIPTS_DIR, SCRIPT_DIRECTOR_PROVIDER, SCRIPTS_DIR
+    from workers.config import (
+        BLUEPRINTS_DIR,
+        DIRECTED_SCRIPTS_DIR,
+        SCRIPT_DIRECTOR_PROVIDER,
+        SCRIPTS_DIR,
+    )
     from workers.io_utils import latest_file, read_json
-    from workers.models import HumanizedScript, StoryScript
+    from workers.models import HumanizedScript, StoryBlueprint, StoryScript
     from workers.script_director import direct_script as _direct
     from workers.script_director import save_directed_script
 
@@ -242,18 +288,31 @@ def direct_script_cmd(
                 console.print("[red]Could not parse latest script file.[/red]")
                 raise typer.Exit(1) from None
 
+    if blueprint_path:
+        blueprint = read_json(blueprint_path, StoryBlueprint)
+    else:
+        found_blueprint = latest_file(BLUEPRINTS_DIR, pattern="blueprint_*.json")
+        if not found_blueprint:
+            console.print("[red]No blueprints found. Run build-blueprint first.[/red]")
+            raise typer.Exit(1)
+        blueprint = read_json(found_blueprint, StoryBlueprint)
+
     used_provider = provider or SCRIPT_DIRECTOR_PROVIDER
     console.print(f"[bold cyan]Running Script Director on: {source.title}[/bold cyan]")
     console.print(f"  Provider: [yellow]{used_provider}[/yellow]  Max attempts: {max_attempts}")
 
-    result = _direct(source, provider_name=used_provider, max_attempts=max_attempts)
+    result = _direct(source, blueprint=blueprint, provider_name=used_provider, max_attempts=max_attempts)
     directed, out_path = save_directed_script(result, source, DIRECTED_SCRIPTS_DIR)
 
     console.print(f"\n  [green]✓[/green] Directed script saved → {out_path.name}")
     console.print(f"  Provider: {directed.director_provider}")
+    console.print(f"  Blueprint: {directed.blueprint_id}")
+    console.print(f"  Narrative score: {directed.narrative_score}/100")
     console.print(f"  Quality score: {directed.quality_score}/100")
     console.print(f"  Telugu authenticity: {directed.telugu_authenticity_score}/100")
     console.print(f"  Continuity: {directed.continuity_score}/100")
+    if directed.hard_failures:
+        console.print(f"  Hard failures: {', '.join(directed.hard_failures)}")
 
     if directed.issues_fixed:
         console.print(f"  Issues fixed ({len(directed.issues_fixed)}):")
@@ -491,6 +550,9 @@ def create_review(
         script_text = ds.directed_telugu_script
         directed_script_info = {
             "provider": ds.director_provider,
+            "blueprint_id": ds.blueprint_id,
+            "narrative_score": ds.narrative_score,
+            "hard_failures": ds.hard_failures,
             "quality_score": ds.quality_score,
             "telugu_authenticity_score": ds.telugu_authenticity_score,
             "continuity_score": ds.continuity_score,

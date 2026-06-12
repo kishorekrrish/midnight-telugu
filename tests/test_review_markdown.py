@@ -115,6 +115,9 @@ class TestReviewMarkdown:
             },
             directed_script_info={
                 "provider": "mock",
+                "blueprint_id": "blueprint_1",
+                "narrative_score": 68,
+                "hard_failures": ["FINAL_TWIST_UNCLEAR"],
                 "quality_score": 92,
                 "telugu_authenticity_score": 100,
                 "continuity_score": 68,
@@ -151,6 +154,9 @@ class TestReviewMarkdown:
             },
             directed_script_info={
                 "provider": "mock",
+                "blueprint_id": "blueprint_1",
+                "narrative_score": 94,
+                "hard_failures": [],
                 "quality_score": 91,
                 "telugu_authenticity_score": 95,
                 "continuity_score": 94,

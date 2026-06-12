@@ -10,7 +10,7 @@ Convert a StoryIdea into a full Telugu narration script for a YouTube Short (45�
 2. **Setup (3–15s)** — Brief context: who, where, what's wrong.
 3. **Build-up (15–40s)** — Rising tension. Each sentence adds to the mystery/suspense.
 4. **Twist/Reveal (40–52s)** — The unexpected turn. Delivered clearly, not rushed.
-5. **Closing line (52–60s)** — A question to the audience or a reflective final thought.
+5. **Closing line (52–60s)** — A cinematic final line tied to the clue/twist, not an audience question.
 
 ## Language Rules
 
@@ -18,7 +18,7 @@ Convert a StoryIdea into a full Telugu narration script for a YouTube Short (45�
 - Short sentences for tension, longer sentences for description
 - Use em-dashes (—) for dramatic pauses
 - No textbook Telugu ("వారు నిష్క్రమించారు" → "వాళ్ళు వెళ్ళిపోయారు")
-- No English except loanwords naturally used in Telugu speech (phone, office)
+- No raw English phrases unless they are truly unavoidable in spoken Telugu
 - No "ఒకానొక రోజు", no "నీతి ఏమిటంటే"
 
 ## Word Count Target
@@ -42,5 +42,5 @@ Convert a StoryIdea into a full Telugu narration script for a YouTube Short (45�
 - [ ] First line creates an immediate question
 - [ ] Story is told, not summarized
 - [ ] Twist is earned — not random
-- [ ] Closing line is conversational, not preachy
+- [ ] Closing line is cinematic, clear, and connected to the reveal
 - [ ] Reads naturally when spoken aloud

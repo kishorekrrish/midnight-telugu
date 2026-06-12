@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import random
+import re
 import uuid
 
+from workers.blueprint_validator import validate_blueprint
 from workers.config import DEFAULT_TEXT_PROVIDER
-from workers.models import StoryIdea, StoryScript
+from workers.models import StoryBlueprint, StoryIdea, StoryScript
+from workers.story_blueprint import build_blueprint
+from workers.telugu_quality import apply_telugu_replacements
 
 # 8 structure keys
 _STRUCTURES = [
@@ -333,6 +337,66 @@ _CATEGORY_DETAILS: dict[str, dict[str, list[str]]] = {
 }
 
 _DEFAULT_CATEGORY = "midnight_mystery"
+_LOCATION_HINTS = [
+    "ఇల్లు", "గది", "చెరువు", "బావి", "స్టేషన్", "దారి", "ఆసుపత్రి",
+    "అలమర", "అద్దం", "వంతెన", "న్యాయస్థానం", "కార్యాలయం",
+]
+_CLUE_HINTS = [
+    "ఉత్తరం", "ఫోటో", "తాళం", "డైరీ", "బొమ్మ", "రికార్డింగ్",
+    "గాజు", "రసీదు", "పెట్టె", "చెవి", "గడియారం", "ముద్ర",
+]
+_CATEGORY_MOODS: dict[str, tuple[str, str, str]] = {
+    "midnight_mystery": (
+        "ఆ రాత్రి చిన్న శబ్దం కూడా పెద్ద హెచ్చరికలా అనిపించింది.",
+        "కానీ — ఆ చిన్న సూచనే అసలు తలుపు తెరిచింది.",
+        "ఆ నిజం బయటికి వచ్చిన తర్వాత ఆ తలుపు మళ్లీ ఎవరూ తట్టలేదు.",
+    ),
+    "village_mystery": (
+        "ఆ ఊరి నిశ్శబ్దం వెనక చాలా కాలంగా దాచిన మాట ఉంది.",
+        "కానీ — ఆ జాడ మట్టిలో కాదు, మనుషుల జ్ఞాపకాల్లో ఉంది.",
+        "ఆ రహస్యం బయటపడిన రాత్రి నుంచి ఆ చోటు గురించి ఎవరూ సరదాగా మాట్లాడలేదు.",
+    ),
+    "family_suspense": (
+        "ఆ ఇంట్లో దాచింది వస్తువు కాదు, ఒక జీవితాన్ని మార్చే మాట.",
+        "కానీ — ఆ జ్ఞాపకాన్ని కాపాడటానికి వాళ్లు నిజాన్నే బంధించారు.",
+        "ఆ నిజం తెలిసిన తర్వాత కుటుంబ ఫోటోలు కూడా అలాగే కనిపించలేదు.",
+    ),
+    "psychological_twist": (
+        "చూసింది ఒక్కటే అయినా, అర్థమవుతున్న నిజం వేరేలా ఉంది.",
+        "కానీ — ఆ సందేహం బయట ప్రపంచం గురించి కాదు, తన గురించే.",
+        "ఆ రాత్రి తర్వాత అతను అద్దంలో ముందుగా తన కళ్లనే చూశాడు.",
+    ),
+    "strange_event": (
+        "ఏం జరిగిందో అర్థం కాలేదు. కానీ అది కేవలం యాదృచ్ఛికం కాదు.",
+        "కానీ — ఆ జాడకు కారణం దొరికినప్పుడు ప్రశ్నలు ఇంకా పెరిగాయి.",
+        "ఆ సంఘటనకి సాక్ష్యంగా మిగిలింది ఒక వస్తువే. అదే చివరి జవాబు అయింది.",
+    ),
+    "soft_horror": (
+        "ఆ గాలి చల్లదనం కంటే, అక్కడి నిశ్శబ్దమే భయపెట్టింది.",
+        "కానీ — భయానికి రూపం ఇచ్చింది ఆ ఒక్క చిన్న సూచనే.",
+        "ఆ రాత్రి తర్వాత చీకటి కంటే ఆ గుర్తే ఎక్కువగా గుర్తొచ్చింది.",
+    ),
+    "crime_no_violence": (
+        "కాగితం మీద ఉన్న నిజం, మనిషి ముఖం మీద ఉన్న నిజానికి సరిపోలలేదు.",
+        "కానీ — ఆ చిన్న తేడానే కేసు మొత్తం తలకిందులు చేసింది.",
+        "ఆ సాక్ష్యం బయటపడిన తర్వాత వాళ్లు మాట్లాడింది చట్టం గురించి కాదు, మోసం గురించి.",
+    ),
+    "emotional_suspense": (
+        "ఆ జ్ఞాపకం మొదట ఓదార్పులా అనిపించింది. తర్వాత అదే గాయం అయింది.",
+        "కానీ — ఆ వస్తువు వెనక ఉన్న నిజం ప్రేమకన్నా భయంకరంగా ఉంది.",
+        "ఆ మాట విన్న తర్వాత శ్యామ్ పాత జ్ఞాపకాలను కూడా కొత్తగా అనుమానించాడు.",
+    ),
+    "karma_justice": (
+        "ఏళ్లుగా మునిగిపోయిన అన్యాయం, ఒక్క చిన్న ఆధారంతో మళ్లీ పైకి వచ్చింది.",
+        "కానీ — దాచిన నిజం తిరిగి వచ్చినప్పుడు బాధపడింది తప్పు చేసినవాడే.",
+        "ఆ రోజుకు తర్వాత వాళ్లు దాన్ని అదృష్టం అనలేదు. ఆలస్యమైన న్యాయం అన్నారు.",
+    ),
+    "poor_vs_rich": (
+        "చిన్నదిగా కనిపించిన వస్తువు వెనక పెద్ద జీవిత కథ దాగి ఉంది.",
+        "కానీ — దాన్ని చదివిన క్షణంలో గౌరవం ఎవరిదో తేలిపోయింది.",
+        "ఆ నిజం బయటపడిన తర్వాత ధనం గురించి మాట్లాడిన వాళ్లే తల వంచారు.",
+    ),
+}
 
 
 def _pick(lst: list[str]) -> str:
@@ -343,8 +407,121 @@ def _fill_twist(twist_template: str, char: str) -> str:
     return twist_template.replace("{char}", char)
 
 
-def generate_script(idea: StoryIdea, provider: str | None = None) -> StoryScript:
-    """Generate a cinematic Telugu script (120–160 words, strong final twist)."""
+def _normalize_sentence(text: str) -> str:
+    text = apply_telugu_replacements(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    text = text.replace(" కి ", "‌కి ").replace(" లో ", "లో ")
+    if text and text[-1] not in ".?!":
+        text += "."
+    return text
+
+
+def _normalize_hook(text: str) -> str:
+    hook = _normalize_sentence(text)
+    hook = hook.replace("వాయిస్ memo", "వాయిస్ మెమో").replace("voice memo", "వాయిస్ మెమో")
+    hook = hook.replace("3 ", "మూడు ")
+    return hook
+
+
+def _extract_named_character(text: str, candidates: list[str]) -> str | None:
+    for name in candidates:
+        if name in text:
+            return name
+    return None
+
+
+def _extract_location(text: str, fallbacks: list[str]) -> str:
+    for hint in _LOCATION_HINTS + fallbacks:
+        if hint in text:
+            return hint
+    return _pick(fallbacks)
+
+
+def _extract_clue(text: str, fallbacks: list[str]) -> str:
+    for hint in _CLUE_HINTS:
+        if hint in text:
+            return hint
+    for fallback in fallbacks:
+        if fallback in text:
+            return fallback
+    return _pick(fallbacks)
+
+
+def _short_phrase(text: str) -> str:
+    phrase = re.sub(r"[\"“”]", "", apply_telugu_replacements(text)).strip()
+    phrase = re.sub(r"\s+", " ", phrase)
+    return phrase.rstrip(".!? ")
+
+
+def _combine_paragraphs(paragraphs: list[str]) -> str:
+    cleaned = [p.strip() for p in paragraphs if p.strip()]
+    return "\n\n".join(cleaned)
+
+
+def _word_count(text: str) -> int:
+    return len(text.split())
+
+
+def _fit_story_length(paragraphs: list[str], category_key: str) -> list[str]:
+    text = _combine_paragraphs(paragraphs)
+    count = _word_count(text)
+    mood_line, escalation_line, closing_line = _CATEGORY_MOODS.get(category_key, _CATEGORY_MOODS[_DEFAULT_CATEGORY])
+
+    if count < 110:
+        paragraphs.insert(2, mood_line)
+        text = _combine_paragraphs(paragraphs)
+        count = _word_count(text)
+    if count < 120:
+        paragraphs.insert(-1, escalation_line)
+        text = _combine_paragraphs(paragraphs)
+        count = _word_count(text)
+    if count > 165:
+        paragraphs = [p.replace("చిన్న ", "").replace("పాత ", "", 1) for p in paragraphs]
+    if _word_count(_combine_paragraphs(paragraphs)) > 175:
+        paragraphs = paragraphs[:]
+        paragraphs[2] = paragraphs[2].split(" కానీ ", 1)[0].strip() + "."
+    if _word_count(_combine_paragraphs(paragraphs)) < 120:
+        paragraphs.append(closing_line)
+    return paragraphs
+
+
+def _build_story_from_blueprint(
+    blueprint: StoryBlueprint,
+    category_key: str,
+) -> str:
+    hook = _normalize_hook(blueprint.hook)
+    premise = _short_phrase(blueprint.setup)
+    twist = _short_phrase(blueprint.reveal)
+    mood_line, escalation_line, closing_line = _CATEGORY_MOODS.get(category_key, _CATEGORY_MOODS[_DEFAULT_CATEGORY])
+    char = blueprint.protagonist_name
+    location = blueprint.locations[0] if blueprint.locations else "పాత ఇల్లు"
+    clue = blueprint.primary_clue
+    device = blueprint.primary_story_device
+    pov_prefix = "నాకు" if blueprint.point_of_view == "first_person" else f"{char}‌కి"
+    actor = "నేను" if blueprint.point_of_view == "first_person" else char
+
+    para1 = hook
+    para2 = (
+        f"{pov_prefix} మొదట అది ఒక చిన్న అనుమానం మాత్రమే. కానీ {premise} "
+        f"అని అనిపించిన క్షణం నుంచి అతను వెనక్కి తగ్గలేదు."
+    )
+    para3 = (
+        f"{location} దగ్గర కనిపించిన {device}తో పాటు {clue}నే మొదటి నిజమైన జాడ. {actor} దాన్ని మళ్లీ చూసిన కొద్దీ, "
+        f"దాచింది ఒక వస్తువు కాదు, ఇంట్లో ఎవరూ పలకకూడదనుకున్న నిజమని అతనికి స్పష్టంగా అనిపించింది."
+    )
+    para4 = (
+        f"{mood_line} {escalation_line} {blueprint.escalation} {twist}."
+    )
+    para5 = (
+        f"{blueprint.final_twist} {blueprint.final_line} {device} గురించిన ప్రశ్నకు అదే చివరి జవాబైంది. {closing_line}"
+    )
+
+    paragraphs = _fit_story_length([para1, para2, para3, para4, para5], category_key)
+    return _combine_paragraphs(paragraphs)
+
+
+def generate_script(source: StoryBlueprint | StoryIdea, provider: str | None = None) -> StoryScript:
+    """Generate a cinematic Telugu script from an approved StoryBlueprint."""
     provider = provider or DEFAULT_TEXT_PROVIDER
 
     if provider != "mock":
@@ -354,47 +531,26 @@ def generate_script(idea: StoryIdea, provider: str | None = None) -> StoryScript
             stacklevel=2,
         )
 
-    category_key = idea.category if isinstance(idea.category, str) else idea.category.value
-    details = _CATEGORY_DETAILS.get(category_key, _CATEGORY_DETAILS[_DEFAULT_CATEGORY])
-
-    char = _pick(details["chars"])
-    place = _pick(details["places"])
-    object_ = _pick(details["objects"])
-    twist_raw = _pick(details["twists"])
-    twist_line = _fill_twist(twist_raw, char)
-    closing = _pick(_CINEMATIC_CLOSINGS)
-
-    # Pick structure based on twist_type / hook content / category
-    twist_type = getattr(idea, "twist_type", "") or ""
-    hook_lower = idea.hook.lower()
-    if "ఉత్తరం" in idea.hook or "letter" in hook_lower or twist_type in ("posthumous_message",):
-        structure = "last_letter_reveal"
-    elif "phone" in hook_lower or "call" in hook_lower or "అర్థరాత్రి" in idea.hook:
-        structure = "phone_call_midnight"
-    elif twist_type in ("identity_reversal", "undercover_reveal"):
-        structure = "reverse_guilt_twist"
-    elif twist_type in ("hidden_object_discovery",):
-        structure = "object_clue_mystery"
-    elif category_key in ("family_suspense", "emotional_suspense"):
-        structure = random.choice(["last_letter_reveal", "family_secret_reveal", "locked_room_clue"])
-    elif category_key in ("soft_horror", "strange_event"):
-        structure = random.choice(["silent_witness", "cold_open_mystery", "phone_call_midnight"])
+    if isinstance(source, StoryIdea):
+        blueprint = build_blueprint(source)
     else:
-        structure = random.choice(_STRUCTURES)
+        blueprint = source
 
-    builder = _STRUCTURE_BUILDERS[structure]
-    full_script = builder(
-        hook=idea.hook,
-        char=char,
-        place=place,
-        object_=object_,
-        twist_line=twist_line,
-        closing=closing,
+    validation = validate_blueprint(blueprint)
+    if not validation.passed:
+        raise ValueError(
+            f"Blueprint failed validation: {', '.join(validation.hard_failures)}"
+        )
+
+    category_key = blueprint.category if isinstance(blueprint.category, str) else blueprint.category.value
+    full_script = _build_story_from_blueprint(
+        blueprint=blueprint,
+        category_key=category_key,
     )
 
-    youtube_title = f"{idea.title} | Midnight Telugu | Telugu Short Story"
+    youtube_title = f"{blueprint.title} | Midnight Telugu | Telugu Short Story"
     youtube_desc = (
-        f"{idea.hook}\n\n"
+        f"{_normalize_hook(blueprint.hook)}\n\n"
         f"Category: {category_key}\n\n"
         "Midnight Telugu — మిస్టరీ, హారర్, సస్పెన్స్ Telugu Short Stories.\n"
         "Subscribe చేయండి మరిన్ని కథలకు.\n\n"
@@ -407,10 +563,11 @@ def generate_script(idea: StoryIdea, provider: str | None = None) -> StoryScript
 
     return StoryScript(
         id=f"script_{uuid.uuid4().hex[:8]}",
-        idea_id=idea.id,
-        title=idea.title,
-        category=idea.category,
-        hook_line=idea.hook,
+        idea_id=blueprint.idea_id,
+        blueprint_id=blueprint.id,
+        title=blueprint.title,
+        category=blueprint.category,
+        hook_line=_normalize_hook(blueprint.hook),
         full_script_telugu=full_script,
         estimated_duration_seconds=duration,
         youtube_title=youtube_title,
