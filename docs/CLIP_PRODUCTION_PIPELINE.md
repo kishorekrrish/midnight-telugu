@@ -1,0 +1,40 @@
+# Clip Production Pipeline
+
+Midnight Telugu now supports a local clip-based Shorts production flow under `stories/<story_slug>/`.
+
+The script is always auto-generated first, then manually approved before any production command can run.
+
+```bash
+python -m workers.cli generate-story-package chandra-last-train --variants 3
+python -m workers.cli approve-script stories/chandra-last-train --candidate candidate_02 --notes "Approved for pilot"
+
+python -m workers.cli generate-voiceover stories/chandra-last-train
+# or fallback:
+python -m workers.cli import-narration stories/chandra-last-train path/to/narration.wav
+
+python -m workers.cli create-scene-manifest stories/chandra-last-train --shots 8
+
+python -m workers.cli generate-veo-clips stories/chandra-last-train
+# or fallback:
+python -m workers.cli import-clips stories/chandra-last-train path/to/clips
+
+python -m workers.cli generate-subtitles stories/chandra-last-train
+python -m workers.cli render-final stories/chandra-last-train
+python -m workers.cli create-production-review stories/chandra-last-train
+```
+
+Production commands fail with:
+
+```text
+Script is not approved. Run approve-script before production.
+```
+
+Use dry-run when preparing provider prompts or render plans without API calls or real media:
+
+```bash
+python -m workers.cli generate-voiceover stories/chandra-last-train --dry-run --voice-id <voice_id>
+python -m workers.cli generate-veo-clips stories/chandra-last-train --dry-run
+python -m workers.cli render-final stories/chandra-last-train --dry-run
+```
+
+The final render targets a vertical `1080x1920` H.264/yuv420p MP4 with AAC 48kHz audio. Optional `music_mix.json` is recognized in the story workspace; copyrighted audio assets are not included.

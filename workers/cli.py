@@ -740,6 +740,512 @@ def record_performance(
     console.print(f"[green]✓[/green] Performance recorded for {video_id} on {record_date}")
 
 
+def _fail(message: str) -> None:
+    console.print(f"[red]{message}[/red]")
+    raise typer.Exit(1)
+
+
+def _pilot_idea(slug: str):
+    from workers.models import ContentCategory, StoryIdea
+
+    if slug == "chandra-last-train":
+        return StoryIdea(
+            id="idea_chandra_last_train",
+            title="చంద్ర చివరి రైలు",
+            category=ContentCategory.STRANGE_EVENT,
+            hook="చివరి రైలు పోయిన తర్వాత కూడా చంద్రకి ప్లాట్‌ఫామ్ మీద ఒక ముసలాయన కనిపించాడు.",
+            premise="చంద్ర రాత్రి ఖాళీ రైల్వే స్టేషన్‌లో చివరి రైలు కోసం ఎదురుచూస్తాడు. ఒక ముసలాయన అతనితో బెంచ్ మీద కూర్చుని రైలు గురించి హెచ్చరిస్తాడు.",
+            twist="ఆ ముసలాయన అదే స్టేషన్‌లో ఐదు సంవత్సరాల క్రితం చివరి రైలు కోసం ఎదురు చూస్తూ చనిపోయాడని స్టేషన్ మాస్టర్ చెప్తాడు.",
+            tone="restrained Telugu supernatural suspense",
+            estimated_duration_seconds=55,
+            hook_type="mysterious_stranger",
+            twist_type="ghost_presence",
+            emotional_core="warning_from_beyond",
+            visual_signature="deserted railway platform at night",
+        )
+    return StoryIdea(
+        id=f"idea_{slug}",
+        title=slug.replace("-", " ").title(),
+        category=ContentCategory.MIDNIGHT_MYSTERY,
+        hook="అర్థరాత్రి వచ్చిన ఒక్క శబ్దం ఒక దాచిన నిజాన్ని బయటపెట్టింది.",
+        premise="ఒక మనిషి ఒంటరిగా ఉన్న చోట ఒక చిన్న జాడను గమనించి నిజం వెతకడం మొదలుపెడతాడు.",
+        twist="అతను వెతికిన వ్యక్తి బయట లేడు. ఆ జాడ అంతా అతని గతానికే తిరిగి వెళ్తుంది.",
+        tone="mystery suspense",
+    )
+
+
+def _write_script_review(ws, candidates: list[dict], recommendation: str) -> Path:
+    import json
+
+    idea = ws.read_json("idea.json")
+    blueprint = ws.read_json("blueprint.json")
+    lines = [
+        f"# {idea['title']}",
+        "",
+        f"Hook: {idea['hook']}",
+        "",
+        "## Locked Blueprint",
+        "",
+        "```json",
+        json.dumps(blueprint, ensure_ascii=False, indent=2),
+        "```",
+        "",
+        "## Script Candidates",
+        "",
+    ]
+    for item in candidates:
+        meta = item["meta"]
+        lines.extend(
+            [
+                f"### {item['candidate_id']}",
+                "",
+                f"- Narrative validation score: {meta['narrative_score']}",
+                f"- Telugu authenticity score: {meta['telugu_authenticity_score']}",
+                f"- Continuity score: {meta['continuity_score']}",
+                f"- Hard failures: {', '.join(meta['hard_failures']) or 'None'}",
+                f"- Recommendation: {meta['recommendation']}",
+                "",
+                item["text"],
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Recommendation",
+            "",
+            recommendation,
+            "",
+            "## Approval Command",
+            "",
+            f"```bash\npython -m workers.cli approve-script {ws.root} --candidate {recommendation} --notes \"Approved for pilot\"\n```",
+            "",
+        ]
+    )
+    path = ws.path("script_review.md")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+@app.command("generate-story-package")
+def generate_story_package(
+    story_slug: str = typer.Argument(..., help="Story slug, e.g. chandra-last-train"),
+    variants: int = typer.Option(3, "--variants", min=1, max=5),
+    provider: str | None = typer.Option(None, "--provider", help="Text provider for generation"),
+) -> None:
+    """Generate a per-story script review package with 2-3 candidate scripts."""
+    from workers.blueprint_validator import validate_blueprint
+    from workers.io_utils import write_json
+    from workers.models import HumanizedScript
+    from workers.script_director import direct_script
+    from workers.script_generator import generate_script as _gen_script
+    from workers.script_quality import validate_script
+    from workers.story_blueprint import build_blueprint
+    from workers.story_workspace import StoryWorkspace
+    from workers.telugu_humanizer import humanize_script as _humanize
+
+    ws = StoryWorkspace.from_arg(story_slug, create=True)
+    idea = _pilot_idea(ws.slug)
+    blueprint = build_blueprint(idea)
+    write_json(ws.path("story_brief.json"), idea)
+    write_json(ws.path("idea.json"), idea)
+    write_json(ws.path("blueprint.json"), blueprint)
+    blueprint_validation = validate_blueprint(blueprint)
+    if not blueprint_validation.passed:
+        _fail(f"Blueprint failed validation: {', '.join(blueprint_validation.hard_failures)}")
+
+    candidates: list[dict] = []
+    best_id = "candidate_01"
+    best_score = -1
+    for idx in range(1, variants + 1):
+        candidate_id = f"candidate_{idx:02d}"
+        script = _gen_script(blueprint, provider=provider)
+        humanized = _humanize(script, provider=provider)
+        directed = direct_script(humanized, blueprint=blueprint, provider_name=provider or "mock", max_attempts=1)
+        text = directed.directed_script
+        quality = validate_script(
+            HumanizedScript(
+                id=f"{candidate_id}_directed",
+                script_id=humanized.id,
+                title=humanized.title,
+                category=humanized.category,
+                hook_line=humanized.hook_line,
+                full_script_telugu=text,
+                estimated_duration_seconds=humanized.estimated_duration_seconds,
+            )
+        )
+        meta = {
+            "candidate_id": candidate_id,
+            "source_script_id": script.id,
+            "narrative_score": directed.narrative_score,
+            "quality_score": quality.quality_score,
+            "telugu_authenticity_score": directed.telugu_authenticity_score,
+            "continuity_score": directed.continuity_score,
+            "hard_failures": directed.hard_failures,
+            "recommendation": directed.recommendation,
+            "approved_for_scene_planning": directed.approved_for_scene_planning,
+        }
+        ws.path("script_candidates", f"{candidate_id}.txt").write_text(text, encoding="utf-8")
+        ws.write_json(f"script_candidates/{candidate_id}.meta.json", meta)
+        candidates.append({"candidate_id": candidate_id, "text": text, "meta": meta})
+        rank = directed.narrative_score + directed.telugu_authenticity_score + directed.continuity_score + quality.quality_score
+        if not directed.hard_failures and rank > best_score:
+            best_id = candidate_id
+            best_score = rank
+
+    review_path = _write_script_review(ws, candidates, best_id)
+    console.print(f"[green]✓[/green] Story package created: {ws.root}")
+    console.print(f"Review package: [cyan]{review_path}[/cyan]")
+    console.print(f"Approve with: [yellow]python -m workers.cli approve-script {ws.root} --candidate {best_id} --notes \"Approved for pilot\"[/yellow]")
+
+
+@app.command("approve-script")
+def approve_script(
+    story: Path = typer.Argument(..., help="stories/<slug> directory"),
+    candidate: str = typer.Option(..., "--candidate", help="candidate_01/candidate_02/..."),
+    notes: str = typer.Option("", "--notes"),
+    approved_by: str = typer.Option("Kishore", "--approved-by"),
+) -> None:
+    """Manually approve exactly one generated script candidate for production."""
+    from workers.production_models import ScriptApproval, now_iso, relative_to_cwd
+    from workers.story_workspace import StoryWorkspace
+
+    ws = StoryWorkspace.from_arg(story, create=False)
+    source = ws.path("script_candidates", f"{candidate}.txt")
+    if not source.exists():
+        _fail(f"Candidate not found: {source}")
+    script_path = ws.path("script.txt")
+    script_path.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    approval = ScriptApproval(
+        story_slug=ws.slug,
+        script_path=relative_to_cwd(script_path),
+        approved=True,
+        approved_by=approved_by,
+        approved_at=now_iso(),
+        notes=notes,
+        script_version=candidate,
+    )
+    ws.write_json("script_approval.json", approval)
+    console.print(f"[green]✓[/green] Approved {candidate}. Production commands are now unlocked.")
+
+
+@app.command("reject-script")
+def reject_script(
+    story: Path = typer.Argument(...),
+    candidate: str = typer.Option(..., "--candidate"),
+    notes: str = typer.Option("", "--notes"),
+) -> None:
+    """Record a manual script rejection."""
+    from workers.story_workspace import StoryWorkspace
+
+    ws = StoryWorkspace.from_arg(story)
+    path = ws.write_rejection(candidate, notes)
+    console.print(f"[yellow]Rejected[/yellow] {candidate}; saved {path}")
+
+
+@app.command("import-narration")
+def import_narration(
+    story: Path = typer.Argument(...),
+    source: Path = typer.Argument(..., exists=True),
+) -> None:
+    """Manual narration import fallback."""
+    from workers.media.ffmpeg_utils import convert_to_wav_48k_mono, probe_media
+    from workers.story_workspace import StoryWorkspace
+    from workers.tts.audio_metadata import narration_metadata
+
+    ws = StoryWorkspace.from_arg(story, create=True)
+    target = ws.path("narration.wav")
+    try:
+        info = probe_media(source)
+    except Exception as exc:
+        _fail(f"Narration is unreadable: {exc}")
+    if source.suffix.lower() == ".wav" and info.sample_rate == 48000 and info.channels == 1:
+        ws.copy_into(source, "narration.wav")
+    elif not convert_to_wav_48k_mono(source, target):
+        ws.copy_into(source, "narration.wav")
+    meta = narration_metadata(target)
+    meta.update({"provider": "manual_import", "status": "success"})
+    ws.write_json("narration.meta.json", meta)
+    console.print(f"[green]✓[/green] Narration imported: {target}")
+    for warning in meta.get("warnings", []):
+        console.print(f"[yellow]⚠[/yellow] {warning}")
+
+
+@app.command("generate-voiceover")
+def generate_voiceover_cmd(
+    story: Path = typer.Argument(...),
+    provider: str | None = typer.Option(None, "--provider"),
+    voice_id: str | None = typer.Option(None, "--voice-id"),
+    model: str | None = typer.Option(None, "--model"),
+    output: str = typer.Option("narration.wav", "--output"),
+    overwrite: bool = typer.Option(False, "--overwrite"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Generate approved script voice-over with ElevenLabs."""
+    from workers.production_models import ProviderNotImplementedError
+    from workers.story_workspace import StoryWorkspace
+    from workers.tts.tts_service import generate_voiceover
+
+    ws = StoryWorkspace.from_arg(story)
+    try:
+        ws.require_approved_script()
+    except RuntimeError as exc:
+        _fail(str(exc))
+    output_path = ws.path(output)
+    if output_path.exists() and not overwrite and not dry_run:
+        _fail(f"Output already exists: {output_path}. Use --overwrite.")
+    try:
+        meta = generate_voiceover(
+            ws.path("script.txt").read_text(encoding="utf-8"),
+            output_path,
+            provider or "elevenlabs",
+            voice_id,
+            model,
+            dry_run=dry_run,
+        )
+    except ProviderNotImplementedError as exc:
+        _fail(str(exc))
+    ws.path("voice_direction.txt").write_text(str(meta.get("voice_direction", "")), encoding="utf-8")
+    ws.write_json("narration.meta.json", meta)
+    console.print(f"[green]✓[/green] Voice-over {'planned' if dry_run else 'generated'}: {output_path}")
+
+
+def _script_chunks(text: str, count: int) -> list[str]:
+    import re
+
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?।])\s+|\n+", text) if s.strip()]
+    if len(sentences) < count:
+        words = text.split()
+        size = max(1, len(words) // count)
+        return [" ".join(words[i : i + size]) for i in range(0, len(words), size)][:count]
+    chunks = []
+    per = max(1, round(len(sentences) / count))
+    for idx in range(0, len(sentences), per):
+        chunks.append(" ".join(sentences[idx : idx + per]))
+    while len(chunks) < count:
+        chunks.append(chunks[-1])
+    return chunks[:count]
+
+
+@app.command("create-scene-manifest")
+def create_scene_manifest(
+    story: Path = typer.Argument(...),
+    shots: int = typer.Option(8, "--shots", min=6, max=10),
+) -> None:
+    """Create editable Veo scene manifest from approved script and narration duration."""
+    from workers.media.ffmpeg_utils import get_duration
+    from workers.production_models import SceneManifest, SceneShot
+    from workers.story_workspace import StoryWorkspace
+    from workers.video_generation.prompt_manifest import (
+        GLOBAL_STYLE,
+        NEGATIVE_PROMPT,
+        ensure_default_bibles,
+    )
+
+    ws = StoryWorkspace.from_arg(story)
+    try:
+        ws.require_approved_script()
+    except RuntimeError as exc:
+        _fail(str(exc))
+    narration = ws.path("narration.wav")
+    if narration.exists():
+        duration = get_duration(narration)
+    elif ws.path("narration.meta.json").exists():
+        duration = float(ws.read_json("narration.meta.json").get("duration_seconds") or 55)
+    else:
+        _fail("narration.wav or narration.meta.json is required before scene manifest creation.")
+    text = ws.path("script.txt").read_text(encoding="utf-8")
+    chunks = _script_chunks(text, shots)
+    character_path, location_path = ensure_default_bibles(ws.root)
+    per = duration / shots
+    shot_models = []
+    for idx in range(shots):
+        start = round(idx * per, 2)
+        end = round(duration if idx == shots - 1 else (idx + 1) * per, 2)
+        shot_id = f"shot_{idx + 1:02d}"
+        narration_text = chunks[idx]
+        shot_models.append(
+            SceneShot(
+                shot_id=shot_id,
+                scene_number=idx + 1,
+                start_seconds=start,
+                end_seconds=end,
+                duration_seconds=round(end - start, 2),
+                narration_text=narration_text,
+                clip_filename=f"{shot_id}.mp4",
+                visual_prompt=f"Visualize this Telugu suspense beat: {narration_text}",
+                camera_notes="Vertical 9:16, restrained cinematic medium shot, slow controlled movement.",
+                subtitle_text=narration_text,
+            )
+        )
+    manifest = SceneManifest(
+        story_slug=ws.slug,
+        title=ws.read_json("idea.json").get("title", ws.slug) if ws.path("idea.json").exists() else ws.slug,
+        total_duration_seconds=round(duration, 2),
+        shots=shot_models,
+        global_style=GLOBAL_STYLE,
+        negative_prompt=NEGATIVE_PROMPT,
+        character_bible_path=str(character_path),
+        location_bible_path=str(location_path),
+    )
+    ws.write_json("scene_manifest.json", manifest)
+    console.print(f"[green]✓[/green] Scene manifest created with {shots} shots.")
+
+
+@app.command("import-clips")
+def import_clips(
+    story: Path = typer.Argument(...),
+    source_dir: Path = typer.Argument(..., exists=True),
+) -> None:
+    """Manual clip import fallback for shot_XX.mp4 files."""
+    import shutil
+
+    from workers.media.ffmpeg_utils import probe_media
+    from workers.story_workspace import StoryWorkspace
+
+    ws = StoryWorkspace.from_arg(story)
+    if not ws.path("scene_manifest.json").exists():
+        _fail("scene_manifest.json is required before importing clips.")
+    manifest = ws.read_json("scene_manifest.json")
+    missing = [shot["clip_filename"] for shot in manifest["shots"] if not (source_dir / shot["clip_filename"]).exists()]
+    if missing:
+        _fail(f"Missing clips: {', '.join(missing)}")
+    for shot in manifest["shots"]:
+        name = shot["clip_filename"]
+        source = source_dir / name
+        info = probe_media(source)
+        if not info.has_video:
+            _fail(f"Clip is not a video: {source}")
+        target = ws.path("clips", name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        meta = info.model_dump()
+        if info.width and info.height and abs((info.width / info.height) - (9 / 16)) > 0.04:
+            meta.setdefault("warnings", []).append("Clip is not vertical 9:16.")
+        ws.write_json(f"clips/{Path(name).stem}.meta.json", meta)
+    console.print("[green]✓[/green] Clips imported and validated.")
+
+
+@app.command("generate-veo-clips")
+def generate_veo_clips_cmd(
+    story: Path = typer.Argument(...),
+    model: str = typer.Option("veo-3.1-generate-preview", "--model"),
+    resolution: str = typer.Option("720p", "--resolution"),
+    aspect_ratio: str = typer.Option("9:16", "--aspect-ratio"),
+    shots: str | None = typer.Option(None, "--shots"),
+    overwrite: bool = typer.Option(False, "--overwrite"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Generate or plan official Veo clips from scene_manifest.json."""
+    from workers.story_workspace import StoryWorkspace
+    from workers.video_generation.video_generation_service import generate_veo_clips
+
+    ws = StoryWorkspace.from_arg(story)
+    try:
+        ws.require_approved_script()
+    except RuntimeError as exc:
+        _fail(str(exc))
+    if not ws.path("scene_manifest.json").exists():
+        _fail("scene_manifest.json is required.")
+    selected = {item.strip() for item in shots.split(",")} if shots else None
+    outputs = generate_veo_clips(
+        ws.root,
+        ws.read_json("scene_manifest.json"),
+        model,
+        resolution,
+        aspect_ratio,
+        selected,
+        overwrite,
+        dry_run,
+    )
+    console.print(f"[green]✓[/green] Veo {'dry-run prompts written' if dry_run else 'generation attempted'} for {len(outputs)} shot(s).")
+
+
+@app.command("generate-subtitles")
+def generate_subtitles_cmd(story: Path = typer.Argument(...)) -> None:
+    """Generate Telugu ASS subtitles from approved script and narration duration."""
+    from workers.media.ffmpeg_utils import get_duration
+    from workers.story_workspace import StoryWorkspace
+    from workers.subtitles.ass_renderer import render_ass
+    from workers.subtitles.subtitle_planner import split_telugu_cues
+
+    ws = StoryWorkspace.from_arg(story)
+    try:
+        ws.require_approved_script()
+    except RuntimeError as exc:
+        _fail(str(exc))
+    narration = ws.path("narration.wav")
+    duration = get_duration(narration) if narration.exists() else float(ws.read_json("narration.meta.json").get("duration_seconds") or 55)
+    cues = split_telugu_cues(ws.path("script.txt").read_text(encoding="utf-8"), duration)
+    ws.path("subtitles.ass").write_text(render_ass(cues, title=ws.slug), encoding="utf-8")
+    console.print(f"[green]✓[/green] Subtitles written: {ws.path('subtitles.ass')}")
+
+
+@app.command("render-final")
+def render_final_cmd(
+    story: Path = typer.Argument(...),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Render final 1080x1920 H.264/AAC Shorts MP4."""
+    from workers.render.clip_composer import render_final
+    from workers.story_workspace import StoryWorkspace
+
+    ws = StoryWorkspace.from_arg(story)
+    try:
+        ws.require_approved_script()
+    except RuntimeError as exc:
+        _fail(str(exc))
+    plan = render_final(ws.root, dry_run=dry_run)
+    if plan.dry_run:
+        console.print(f"[yellow]DRY RUN[/yellow] Render plan written: {ws.path('render_plan.json')}")
+        for warning in plan.warnings:
+            console.print(f"[yellow]⚠[/yellow] {warning}")
+    else:
+        console.print(f"[green]✓[/green] Final video rendered: {plan.output_path}")
+
+
+@app.command("create-production-review")
+def create_production_review(story: Path = typer.Argument(...)) -> None:
+    """Create final manual production review package."""
+    import json
+
+    from workers.media.ffmpeg_utils import probe_media
+    from workers.story_workspace import StoryWorkspace
+
+    ws = StoryWorkspace.from_arg(story)
+    approval = ws.approval()
+    if not approval:
+        _fail("script_approval.json is required.")
+    clip_meta = []
+    for path in sorted(ws.path("clips").glob("*.meta.json")):
+        clip_meta.append(json.loads(path.read_text(encoding="utf-8")))
+    final_path = ws.path("final.mp4")
+    final_meta = probe_media(final_path).model_dump() if final_path.exists() else None
+    review = {
+        "story_slug": ws.slug,
+        "script_path": str(ws.path("script.txt")),
+        "script_approval": approval.model_dump(),
+        "narration_metadata": ws.read_json("narration.meta.json") if ws.path("narration.meta.json").exists() else None,
+        "clip_metadata": clip_meta,
+        "subtitle_path": str(ws.path("subtitles.ass")),
+        "final_video_path": str(final_path),
+        "final_video_metadata": final_meta,
+        "warnings": [] if final_path.exists() else ["final.mp4 has not been rendered yet."],
+        "manual_review_checklist": {
+            "script_approved": bool(approval.approved),
+            "voice_quality_ok": False,
+            "character_consistency_ok": False,
+            "scene_continuity_ok": False,
+            "subtitle_readability_ok": False,
+            "music_volume_ok": False,
+            "final_twist_impact_ok": False,
+            "no_monetization_policy_risk": False,
+            "ready_for_manual_upload": False,
+        },
+    }
+    ws.write_json("review.json", review)
+    console.print(f"[green]✓[/green] Production review written: {ws.path('review.json')}")
+
+
 def main() -> None:
     app()
 
