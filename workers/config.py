@@ -17,10 +17,11 @@ def _get(key: str, default: str = "") -> str:
 
 
 # Provider selection
-DEFAULT_TEXT_PROVIDER: str = _get("DEFAULT_TEXT_PROVIDER", "mock")
+DEFAULT_TEXT_PROVIDER: str = _get("DEFAULT_TEXT_PROVIDER", "openai")
 DEFAULT_VOICE_PROVIDER: str = _get("DEFAULT_VOICE_PROVIDER", "mock")
 DEFAULT_IMAGE_PROVIDER: str = _get("DEFAULT_IMAGE_PROVIDER", "mock")
 SCRIPT_DIRECTOR_PROVIDER: str = _get("SCRIPT_DIRECTOR_PROVIDER", DEFAULT_TEXT_PROVIDER)
+ALLOW_MOCK_PRODUCTION: bool = _get("MIDNIGHT_TELUGU_TEST_MODE", "") == "1"
 
 # API keys (optional in v1)
 OPENAI_API_KEY: str = _get("OPENAI_API_KEY", "")

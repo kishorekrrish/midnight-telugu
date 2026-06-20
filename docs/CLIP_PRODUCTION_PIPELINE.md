@@ -29,6 +29,17 @@ Production commands fail with:
 Script is not approved. Run approve-script before production.
 ```
 
+Script generation is AI-backed by default. Configure:
+
+```env
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
+DEFAULT_TEXT_PROVIDER=openai
+SCRIPT_DIRECTOR_PROVIDER=openai
+```
+
+Mock script generation is blocked in production. Tests may set `MIDNIGHT_TELUGU_TEST_MODE=1` and pass `--provider mock`; never set that variable for real story packages.
+
 Use dry-run when preparing provider prompts or render plans without API calls or real media:
 
 ```bash

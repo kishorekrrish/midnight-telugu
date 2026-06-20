@@ -12,8 +12,9 @@ def get_text_provider(provider_name: str) -> BaseTextProvider:
         from workers.providers.openai_text_provider import OpenAITextProvider
 
         return OpenAITextProvider()
-    # Default: mock
-    return MockTextProvider()
+    if provider_name == "mock":
+        return MockTextProvider()
+    raise ValueError(f"Text provider '{provider_name}' is not implemented.")
 
 
 __all__ = ["BaseTextProvider", "MockTextProvider", "get_text_provider"]

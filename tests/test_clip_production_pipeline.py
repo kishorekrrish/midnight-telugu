@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from workers.cli import app
 from workers.production_models import SceneManifest, SceneShot
 from workers.render.clip_composer import build_render_command
+from workers.script_generator import generate_script
 from workers.story_workspace import APPROVAL_ERROR, StoryWorkspace
 from workers.subtitles.ass_renderer import render_ass
 from workers.subtitles.subtitle_planner import split_telugu_cues
@@ -82,12 +83,42 @@ def test_story_workspace_creation(tmp_path):
 
 def test_script_package_generation_creates_candidates_and_review(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, ["generate-story-package", "chandra-last-train", "--variants", "2"])
+    monkeypatch.setenv("MIDNIGHT_TELUGU_TEST_MODE", "1")
+    monkeypatch.setattr("workers.config.ALLOW_MOCK_PRODUCTION", True)
+    result = runner.invoke(
+        app,
+        ["generate-story-package", "chandra-last-train", "--variants", "2", "--provider", "mock"],
+    )
     assert result.exit_code == 0, result.output
     ws = StoryWorkspace.from_arg("chandra-last-train")
     assert ws.path("script_candidates", "candidate_01.txt").exists()
     assert ws.path("script_candidates", "candidate_02.meta.json").exists()
     assert "Approval Command" in ws.path("script_review.md").read_text(encoding="utf-8")
+
+
+def test_production_rejects_mock_story_package_provider(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("MIDNIGHT_TELUGU_TEST_MODE", raising=False)
+    monkeypatch.setattr("workers.config.ALLOW_MOCK_PRODUCTION", False)
+    result = runner.invoke(
+        app,
+        ["generate-story-package", "chandra-last-train", "--provider", "mock"],
+    )
+    assert result.exit_code == 1
+    assert "Mock script provider is disabled for production" in result.output
+
+
+def test_script_generation_uses_text_provider_for_non_mock(monkeypatch):
+    from tests.test_cli_blueprint_flow import _make_blueprint
+
+    class FakeProvider:
+        def generate_text(self, prompt: str) -> str:
+            assert "Locked blueprint" in prompt
+            return "చంద్ర స్టేషన్‌లో ఒంటరిగా నిలబడ్డాడు. చివరికి ముసలాయన మాటే నిజమైంది."
+
+    monkeypatch.setattr("workers.providers.get_text_provider", lambda provider: FakeProvider())
+    script = generate_script(_make_blueprint(), provider="openai")
+    assert "చంద్ర స్టేషన్" in script.full_script_telugu
 
 
 def test_approval_command_creates_script_and_approval_json(tmp_path):

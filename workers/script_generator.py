@@ -520,16 +520,51 @@ def _build_story_from_blueprint(
     return _combine_paragraphs(paragraphs)
 
 
+def _build_ai_script_prompt(blueprint: StoryBlueprint, category_key: str) -> str:
+    supporting = ", ".join(blueprint.supporting_clues) or "None"
+    locations = ", ".join(blueprint.locations) or "single locked location"
+    forbidden = ", ".join(blueprint.forbidden_elements) or "new characters, vague twists"
+    return f"""You are the lead Telugu scriptwriter for Midnight Telugu, a YouTube Shorts channel for mystery, suspense, and soft-horror stories.
+
+Write ONE production-ready Telugu voice-over narration script from this locked blueprint.
+
+Hard requirements:
+- Output only the final Telugu narration text. No headings, notes, markdown, translations, or explanations.
+- Natural spoken Telugu, mature Indian narrator tone.
+- 45-60 seconds when narrated.
+- Viral hook in the first 2-3 seconds.
+- One protagonist only; do not change the protagonist name.
+- No POV confusion.
+- No unnecessary English words.
+- No moral lecture, no generic AI ending, no engagement question.
+- The final twist must be specific, clear, and pay off an earlier clue.
+- End with a strong final line.
+- Stay family-safe: no gore, no graphic violence.
+
+Locked blueprint:
+Title: {blueprint.title}
+Category: {category_key}
+Protagonist: {blueprint.protagonist_name}
+Role: {blueprint.protagonist_role}
+POV: {blueprint.point_of_view}
+Hook: {blueprint.hook}
+Central question: {blueprint.central_question}
+Primary story device: {blueprint.primary_story_device}
+Primary clue: {blueprint.primary_clue}
+Supporting clues: {supporting}
+Setup: {blueprint.setup}
+Escalation: {blueprint.escalation}
+Reveal: {blueprint.reveal}
+Final twist: {blueprint.final_twist}
+Required final line idea: {blueprint.final_line}
+Locations: {locations}
+Forbidden elements: {forbidden}
+"""
+
+
 def generate_script(source: StoryBlueprint | StoryIdea, provider: str | None = None) -> StoryScript:
     """Generate a cinematic Telugu script from an approved StoryBlueprint."""
     provider = provider or DEFAULT_TEXT_PROVIDER
-
-    if provider != "mock":
-        import warnings
-        warnings.warn(
-            f"Provider '{provider}' not implemented in v1. Falling back to mock.",
-            stacklevel=2,
-        )
 
     if isinstance(source, StoryIdea):
         blueprint = build_blueprint(source)
@@ -543,10 +578,19 @@ def generate_script(source: StoryBlueprint | StoryIdea, provider: str | None = N
         )
 
     category_key = blueprint.category if isinstance(blueprint.category, str) else blueprint.category.value
-    full_script = _build_story_from_blueprint(
-        blueprint=blueprint,
-        category_key=category_key,
-    )
+    if provider == "mock":
+        full_script = _build_story_from_blueprint(
+            blueprint=blueprint,
+            category_key=category_key,
+        )
+    else:
+        from workers.providers import get_text_provider
+
+        ai_provider = get_text_provider(provider)
+        full_script = ai_provider.generate_text(_build_ai_script_prompt(blueprint, category_key)).strip()
+        if not full_script:
+            raise RuntimeError(f"Text provider '{provider}' returned an empty script.")
+        full_script = apply_telugu_replacements(full_script)
 
     youtube_title = f"{blueprint.title} | Midnight Telugu | Telugu Short Story"
     youtube_desc = (

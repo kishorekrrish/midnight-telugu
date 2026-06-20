@@ -830,10 +830,11 @@ def _write_script_review(ws, candidates: list[dict], recommendation: str) -> Pat
 def generate_story_package(
     story_slug: str = typer.Argument(..., help="Story slug, e.g. chandra-last-train"),
     variants: int = typer.Option(3, "--variants", min=1, max=5),
-    provider: str | None = typer.Option(None, "--provider", help="Text provider for generation"),
+    provider: str = typer.Option("openai", "--provider", help="Text provider for script generation"),
 ) -> None:
-    """Generate a per-story script review package with 2-3 candidate scripts."""
+    """Generate a per-story AI script review package with 2-3 candidate scripts."""
     from workers.blueprint_validator import validate_blueprint
+    from workers.config import ALLOW_MOCK_PRODUCTION
     from workers.io_utils import write_json
     from workers.models import HumanizedScript
     from workers.script_director import direct_script
@@ -843,6 +844,10 @@ def generate_story_package(
     from workers.story_workspace import StoryWorkspace
     from workers.telugu_humanizer import humanize_script as _humanize
 
+    if provider == "mock":
+        if not ALLOW_MOCK_PRODUCTION:
+            _fail("Mock script provider is disabled for production. Set MIDNIGHT_TELUGU_TEST_MODE=1 only in tests.")
+        console.print("[yellow]⚠ Test mode: using mock script provider.[/yellow]")
     ws = StoryWorkspace.from_arg(story_slug, create=True)
     idea = _pilot_idea(ws.slug)
     blueprint = build_blueprint(idea)
@@ -860,7 +865,7 @@ def generate_story_package(
         candidate_id = f"candidate_{idx:02d}"
         script = _gen_script(blueprint, provider=provider)
         humanized = _humanize(script, provider=provider)
-        directed = direct_script(humanized, blueprint=blueprint, provider_name=provider or "mock", max_attempts=1)
+        directed = direct_script(humanized, blueprint=blueprint, provider_name=provider, max_attempts=2)
         text = directed.directed_script
         quality = validate_script(
             HumanizedScript(

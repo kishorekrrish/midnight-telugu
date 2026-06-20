@@ -28,7 +28,7 @@ def generate_voiceover(
     provider_name = provider_name or os.environ.get("TTS_PROVIDER", "elevenlabs")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     voice_id = voice_id or os.environ.get("ELEVENLABS_VOICE_ID", "")
-    model = model or os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+    model = model or os.environ.get("ELEVENLABS_MODEL", "eleven_v3")
     direction = DEFAULT_VOICE_DIRECTION
 
     if provider_name != "elevenlabs":

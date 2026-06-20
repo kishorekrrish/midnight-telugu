@@ -140,14 +140,31 @@ def humanize_script(script: StoryScript, provider: str | None = None) -> Humaniz
     """Apply full naturalness and pacing pass to a Telugu script."""
     provider = provider or DEFAULT_TEXT_PROVIDER
 
-    if provider != "mock":
-        import warnings
-        warnings.warn(
-            f"Provider '{provider}' not implemented in v1. Falling back to mock.",
-            stacklevel=2,
-        )
-
     text = script.full_script_telugu
+    if provider != "mock":
+        from workers.providers import get_text_provider
+
+        prompt = f"""You are the Telugu humanization editor for Midnight Telugu.
+
+Rewrite this Telugu Shorts narration to sound naturally spoken by a mature Indian Telugu male narrator.
+
+Hard requirements:
+- Output only the final Telugu narration text.
+- Preserve the exact story, protagonist, clues, reveal, and final twist.
+- Do not translate, summarize, add new characters, or change the ending.
+- Remove unnecessary English words.
+- Keep it around 45-60 seconds.
+- Add suspenseful breathing rhythm with short paragraphs.
+- No moral lecture, no engagement question.
+
+Script:
+```
+{text}
+```
+"""
+        text = get_text_provider(provider).generate_text(prompt).strip()
+        if not text:
+            raise RuntimeError(f"Text provider '{provider}' returned an empty humanized script.")
 
     text = apply_telugu_replacements(text)   # English → Telugu equivalents first
     text = _apply_word_subs(text)

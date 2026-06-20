@@ -9,6 +9,7 @@ description = "AI-assisted Telugu YouTube Shorts draft production system"
 requires-python = ">=3.11"
 dependencies = [
     "google-genai>=1.0",
+    "openai>=1.0",
     "pydantic>=2.5",
     "typer>=0.9",
     "python-dotenv>=1.0",
