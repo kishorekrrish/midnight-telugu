@@ -8,11 +8,15 @@ from typer.testing import CliRunner
 
 from workers.cli import app
 from workers.story_lab import (
+    RealStorySeed,
     ScriptCritique,
+    analyze_source_safety,
     build_advanced_blueprint,
+    build_fictionalization_plan,
     default_story_brief,
     evaluate_candidate,
     generate_idea_bank,
+    generate_real_story_lab_package,
     generate_story_lab_package,
     run_editorial_gate,
     score_idea_viral,
@@ -127,6 +131,81 @@ def test_candidate_approval_requires_best_in_class_editorial_gate():
     candidate = evaluate_candidate("weak_candidate", blueprint, weak_script, critique, [])
     assert candidate.recommendation == "needs_rewrite"
     assert "WEAK_OR_AWKWARD_LANGUAGE" in candidate.hard_failures
+
+
+def test_real_story_safety_blocks_active_case_with_real_person_accusation():
+    seed = RealStorySeed(
+        story_slug="blocked-case",
+        source_type="reported_incident",
+        source_summary="A recent allegation involving a named person at an exact apartment.",
+        real_names_present=True,
+        exact_location_present=True,
+        active_case=True,
+        accusation_against_real_person=True,
+    )
+    report = analyze_source_safety(seed)
+    assert report.safe_to_dramatize is False
+    assert report.risk_level == "blocked"
+    assert "ACTIVE_CASE" in report.blocked_reasons
+    assert "REAL_PERSON_ACCUSATION" in report.blocked_reasons
+
+
+def test_fictionalization_plan_preserves_realistic_detail_without_identity():
+    seed = RealStorySeed(
+        story_slug="hospital-phone",
+        source_type="local_rumour",
+        source_summary="A closed hospital floor reportedly received the same phone call every night.",
+        source_location_type="hospital",
+        source_confidence="rumour",
+    )
+    report = analyze_source_safety(seed)
+    plan = build_fictionalization_plan(seed, report)
+    assert report.safe_to_dramatize is True
+    assert report.claim_style == "fictionalized_realism"
+    assert plan.changed_names is True
+    assert plan.generalized_location is True
+    assert "true story claim" in plan.forbidden_elements
+
+
+def test_real_story_lab_package_writes_seed_safety_plan_and_three_candidates(tmp_path):
+    seed = RealStorySeed(
+        story_slug="hospital-phone",
+        source_type="local_rumour",
+        source_summary="A closed hospital floor reportedly received the same phone call every night.",
+        source_location_type="hospital",
+        source_confidence="rumour",
+    )
+    story_dir = tmp_path / "stories" / seed.story_slug
+    result = generate_real_story_lab_package(story_dir, seed, provider="mock", idea_count=10)
+    assert result["blocked"] is False
+    assert result["candidate_count"] == 3
+    assert (story_dir / "real_story_seed.json").exists()
+    assert (story_dir / "source_safety_report.json").exists()
+    assert (story_dir / "fictionalization_plan.json").exists()
+    assert (story_dir / "ideas.json").exists()
+    assert (story_dir / "top_ideas.json").exists()
+    assert len(list((story_dir / "script_candidates").glob("candidate_*.txt"))) == 3
+    assert len(list((story_dir / "critic_reviews").glob("candidate_*_review.json"))) == 3
+    review = (story_dir / "script_review.md").read_text(encoding="utf-8")
+    assert "Real-Story-Inspired Story Lab Review" in review
+    assert "Source Safety" in review
+
+
+def test_real_story_lab_package_stops_when_source_is_blocked(tmp_path):
+    seed = RealStorySeed(
+        story_slug="blocked-case",
+        source_type="reported_incident",
+        source_summary="A recent active case with a named person and exact address.",
+        real_names_present=True,
+        exact_location_present=True,
+        active_case=True,
+    )
+    story_dir = tmp_path / "stories" / seed.story_slug
+    result = generate_real_story_lab_package(story_dir, seed, provider="mock", idea_count=10)
+    assert result["blocked"] is True
+    assert result["candidate_count"] == 0
+    assert (story_dir / "source_safety_report.json").exists()
+    assert not (story_dir / "ideas.json").exists()
 
 
 def test_story_lab_cli_uses_mock_only_in_test_mode(tmp_path, monkeypatch):

@@ -1,0 +1,127 @@
+[
+  {
+    "idea": {
+      "id": "real_idea_09_f6e6c3",
+      "title": "రహస్య రూమ్ 307",
+      "category": "soft_horror",
+      "hook": "రహస్యంగా 307తో ఏం జరుగుతోంది?",
+      "premise": "ఒక నర్సు తన పేషంట్ ని ఖాతాలో పెట్టిన కాల్స్ గురించి ఆలోచిస్తోంది.",
+      "twist": "కానీ ఆ కాల్స్ ప్రారంభమైనప్పుడు, ఆమె భయంకరమైన సత్యాన్ని తెలుసుకుంటుంది.",
+      "tone": "సంక్లిష్టమైన మరియు ఉత్కంఠభరితమైన",
+      "estimated_duration_seconds": 50,
+      "originality_notes": "AI real-story-inspired fictionalized candidate.",
+      "safety_notes": "Inspired by real incidents and local stories. Names and details changed for privacy.",
+      "hook_type": "విశేషణ",
+      "twist_type": "నవీకరణ",
+      "emotional_core": "ప్రేమ మరియు నష్టం",
+      "visual_signature": "ప్రత్యేకంగా ఉన్న కాల్స్‌ని వింటూ ఓ నర్సు తన చేతిలో దూరాన్ని చూసినప్పుడు",
+      "risk_flags": [],
+      "story_score": 0,
+      "score_breakdown": {},
+      "repeatability_warnings": [],
+      "created_at": "2026-06-21T07:56:22.475940Z"
+    },
+    "viral_score": {
+      "scroll_stop_hook": 5,
+      "freshness": 10,
+      "emotional_punch": 8,
+      "twist_surprise": 6,
+      "twist_fairness": 5,
+      "replay_clue": 3,
+      "visual_simplicity": 6,
+      "production_feasibility": 6,
+      "shareability": 6,
+      "comment_potential": 8,
+      "total": 63,
+      "rejection_reasons": [
+        "Hook uses weak/generic phrasing."
+      ],
+      "improvement_suggestions": [
+        "Add a replay clue that appears before the reveal.",
+        "Make the twist feel earned by planting the clue earlier."
+      ]
+    }
+  },
+  {
+    "idea": {
+      "id": "real_idea_01_8018df",
+      "title": "ఆ రూమ్ 307",
+      "category": "soft_horror",
+      "hook": "ఏం జరుగుతోంది? 307 నెంబర్ ఎలా మాటలాడుతున్న దానితో?",
+      "premise": "ఒక నర్సు, రాత్రిళ్ళలో 307 అనే నెంబర్ నుండి వచ్చిన అజ్ఞాత కాల్స్‌ను అనుభవిస్తుంది, కాని ఆ రూమ్ మూసివేయబడింది.",
+      "twist": "ఆ కాల్స్ వచ్చేవరకు ఒక భయంకరమైన గాంధీని చూడలేక పోయింది.",
+      "tone": "సంక్లిష్టమైన భయం",
+      "estimated_duration_seconds": 50,
+      "originality_notes": "AI real-story-inspired fictionalized candidate.",
+      "safety_notes": "Inspired by real incidents and local stories. Names and details changed for privacy.",
+      "hook_type": "ప్రశ్న",
+      "twist_type": "తిప్పు",
+      "emotional_core": "అసూటి మరియు భయం",
+      "visual_signature": "నర్సు నిద్ర లేని రాత్రుల మధ్య చీకటిలో ఉన్న హాస్పిటల్ రూమ్",
+      "risk_flags": [],
+      "story_score": 0,
+      "score_breakdown": {},
+      "repeatability_warnings": [],
+      "created_at": "2026-06-21T07:56:22.475830Z"
+    },
+    "viral_score": {
+      "scroll_stop_hook": 5,
+      "freshness": 10,
+      "emotional_punch": 8,
+      "twist_surprise": 5,
+      "twist_fairness": 5,
+      "replay_clue": 3,
+      "visual_simplicity": 6,
+      "production_feasibility": 6,
+      "shareability": 6,
+      "comment_potential": 8,
+      "total": 62,
+      "rejection_reasons": [],
+      "improvement_suggestions": [
+        "Add a replay clue that appears before the reveal.",
+        "Make the twist feel earned by planting the clue earlier."
+      ]
+    }
+  },
+  {
+    "idea": {
+      "id": "real_idea_02_3885f4",
+      "title": "మౌన కాల్స్",
+      "category": "soft_horror",
+      "hook": "మౌన కాల్స్ ఎందుకు వస్తున్నాయ్? ఎవరు మాట్లాడటం లేదు?",
+      "premise": "ఒక పేషెంట్ మృతి చెందిన తర్వాత, 307 నెంబర్ నుంచి ప్రతి రాత్రి వచ్చిన మౌన కాల్స్ కనుగొనబడతాయి.",
+      "twist": "రాత్రి మౌనంగా ఉన్న కాల్స్ నిజానికి ఆ పేషంట్ యొక్క చివరిన రోజు జరిగిన చర్చలు.",
+      "tone": "భయంకరమైన మిస్టరీ",
+      "estimated_duration_seconds": 50,
+      "originality_notes": "AI real-story-inspired fictionalized candidate.",
+      "safety_notes": "Inspired by real incidents and local stories. Names and details changed for privacy.",
+      "hook_type": "రహస్యం",
+      "twist_type": "ప్రకటన",
+      "emotional_core": "నష్టాన్ని చుట్టుకుంటున్న భావన",
+      "visual_signature": "భయంతో కూడుకున్న నర్సు టెలిఫోన్ వద్ద కూర్చొని, కాల్ వస్తున్నప్పుడు ముఖం మారుతుంది.",
+      "risk_flags": [],
+      "story_score": 0,
+      "score_breakdown": {},
+      "repeatability_warnings": [],
+      "created_at": "2026-06-21T07:56:22.475858Z"
+    },
+    "viral_score": {
+      "scroll_stop_hook": 5,
+      "freshness": 10,
+      "emotional_punch": 8,
+      "twist_surprise": 5,
+      "twist_fairness": 5,
+      "replay_clue": 3,
+      "visual_simplicity": 6,
+      "production_feasibility": 6,
+      "shareability": 6,
+      "comment_potential": 8,
+      "total": 62,
+      "rejection_reasons": [],
+      "improvement_suggestions": [
+        "Add a replay clue that appears before the reveal.",
+        "Make the twist feel earned by planting the clue earlier."
+      ]
+    }
+  }
+]

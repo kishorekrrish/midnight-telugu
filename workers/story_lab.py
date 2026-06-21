@@ -47,6 +47,50 @@ class StoryBrief(BaseModel):
     )
 
 
+class RealStorySeed(BaseModel):
+    story_slug: str
+    source_type: str
+    source_summary: str
+    source_language: str = "te-IN"
+    source_location_type: str | None = None
+    source_confidence: str = "unverified"
+    known_sensitive_details: list[str] = Field(default_factory=list)
+    real_names_present: bool = False
+    exact_location_present: bool = False
+    active_case: bool = False
+    minors_involved: bool = False
+    graphic_violence: bool = False
+    accusation_against_real_person: bool = False
+    desired_tone: str = "restrained horror mystery"
+    desired_duration_seconds: int = 50
+    target_audience: str = "Telugu YouTube Shorts audience, 18-45"
+
+
+class SourceSafetyReport(BaseModel):
+    story_slug: str
+    safe_to_dramatize: bool
+    risk_level: str = "low"
+    claim_style: str = "inspired_by_real_events"
+    required_changes: list[str] = Field(default_factory=list)
+    blocked_reasons: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    disclaimer: str = "Inspired by real incidents and local stories. Names and details changed for privacy."
+
+
+class FictionalizationPlan(BaseModel):
+    story_slug: str
+    changed_names: bool = True
+    generalized_location: bool = True
+    changed_time_period: bool = True
+    changed_profession_or_relationships: bool = False
+    removed_accusations: bool = True
+    preserved_core_emotion: str
+    preserved_core_mystery: str
+    preserved_realistic_detail: str
+    fictionalized_elements: list[str] = Field(default_factory=list)
+    forbidden_elements: list[str] = Field(default_factory=list)
+
+
 class ViralScore(BaseModel):
     scroll_stop_hook: int = 0
     freshness: int = 0
@@ -229,6 +273,111 @@ _CHANDRA_IDEAS = [
 ]
 
 
+_CLAIM_STYLE_BY_SOURCE = {
+    "folklore": "folklore_inspired",
+    "local_rumour": "inspired_by_real_events",
+    "public_anecdote": "dramatized_public_anecdote",
+    "reported_incident": "dramatized_public_anecdote",
+    "family_story": "inspired_by_real_events",
+    "unexplained_event": "inspired_by_real_events",
+    "news_inspired": "dramatized_public_anecdote",
+    "fictionalized_realism": "fictionalized_realism",
+}
+
+
+def analyze_source_safety(seed: RealStorySeed) -> SourceSafetyReport:
+    """Block unsafe source material before any dramatization or generation."""
+    required_changes = [
+        "Change names and identifying details.",
+        "Avoid exact addresses and real institutions.",
+        "Present as inspired/dramatized, not verified truth.",
+    ]
+    blocked_reasons: list[str] = []
+    warnings: list[str] = []
+
+    if seed.active_case:
+        blocked_reasons.append("ACTIVE_CASE")
+    if seed.accusation_against_real_person:
+        blocked_reasons.append("REAL_PERSON_ACCUSATION")
+    if seed.real_names_present and seed.exact_location_present:
+        blocked_reasons.append("REAL_NAME_WITH_EXACT_LOCATION")
+    if seed.graphic_violence:
+        blocked_reasons.append("GRAPHIC_VIOLENCE_CORE_APPEAL")
+    if seed.minors_involved and (seed.graphic_violence or seed.source_type in {"reported_incident", "news_inspired"}):
+        blocked_reasons.append("SENSITIVE_MINOR_HARM")
+
+    if seed.real_names_present:
+        warnings.append("Real names are present; replace all names.")
+        required_changes.append("Use fully fictional names.")
+    if seed.exact_location_present:
+        warnings.append("Exact location is present; generalize to a broad location type.")
+        required_changes.append("Replace exact location with a generic place.")
+    if seed.source_confidence in {"rumour", "unverified", "fictionalized"}:
+        warnings.append("Source is not verified; do not claim this is a true story.")
+    if seed.known_sensitive_details:
+        warnings.append("Sensitive details were provided; remove or blur them.")
+        required_changes.append("Remove sensitive identifying details.")
+
+    risk_level = "blocked" if blocked_reasons else "low"
+    if not blocked_reasons and (warnings or seed.source_type in {"reported_incident", "news_inspired"}):
+        risk_level = "medium"
+    if not blocked_reasons and len(warnings) >= 3:
+        risk_level = "high"
+
+    claim_style = _CLAIM_STYLE_BY_SOURCE.get(seed.source_type, "fictionalized_realism")
+    if seed.source_confidence in {"folklore", "rumour", "unverified", "fictionalized"}:
+        claim_style = "folklore_inspired" if seed.source_type == "folklore" else "fictionalized_realism"
+
+    return SourceSafetyReport(
+        story_slug=seed.story_slug,
+        safe_to_dramatize=not blocked_reasons,
+        risk_level=risk_level,
+        claim_style=claim_style,
+        required_changes=sorted(set(required_changes)),
+        blocked_reasons=blocked_reasons,
+        warnings=warnings,
+    )
+
+
+def build_fictionalization_plan(seed: RealStorySeed, safety: SourceSafetyReport) -> FictionalizationPlan:
+    if not safety.safe_to_dramatize:
+        return FictionalizationPlan(
+            story_slug=seed.story_slug,
+            preserved_core_emotion="blocked",
+            preserved_core_mystery="blocked",
+            preserved_realistic_detail="blocked",
+            fictionalized_elements=[],
+            forbidden_elements=safety.blocked_reasons,
+        )
+
+    location = seed.source_location_type or "local place"
+    summary = seed.source_summary.strip()
+    realistic_detail = summary.split(".")[0].strip()[:160] if summary else location
+    return FictionalizationPlan(
+        story_slug=seed.story_slug,
+        changed_profession_or_relationships=seed.real_names_present or seed.accusation_against_real_person,
+        preserved_core_emotion="fear mixed with doubt: this could have happened nearby",
+        preserved_core_mystery=f"an unexplained recurring detail around a {location}",
+        preserved_realistic_detail=realistic_detail,
+        fictionalized_elements=[
+            "Changed all personal names.",
+            "Generalized the location.",
+            "Changed the exact time period.",
+            "Compressed events into a 45-60 second Telugu Shorts structure.",
+            "Added one cinematic recurring clue for replay value.",
+        ],
+        forbidden_elements=[
+            "true story claim",
+            "exact address",
+            "real person accusation",
+            "active case details",
+            "graphic violence",
+            "recent tragedy exploitation",
+            *safety.required_changes,
+        ],
+    )
+
+
 def default_story_brief(story_slug: str) -> StoryBrief:
     if story_slug == "chandra-last-train":
         return StoryBrief(
@@ -314,6 +463,111 @@ Rules:
                 estimated_duration_seconds=brief.target_duration_seconds,
                 originality_notes="AI Story Lab generated candidate.",
                 safety_notes="Family-safe supernatural suspense; no gore.",
+                **item,
+            )
+        )
+    return ideas
+
+
+def generate_real_story_idea_bank(
+    seed: RealStorySeed,
+    safety: SourceSafetyReport,
+    plan: FictionalizationPlan,
+    count: int = 10,
+    provider: str | None = None,
+) -> list[StoryIdea]:
+    if not safety.safe_to_dramatize:
+        raise ValueError(f"Source is blocked: {', '.join(safety.blocked_reasons)}")
+
+    provider = provider or DEFAULT_TEXT_PROVIDER
+    location = seed.source_location_type or "local place"
+    if provider == "mock":
+        base = [
+            {
+                "title": "మూడో అంతస్తు ఫోన్",
+                "hook": "ఆ ఆసుపత్రిలో మూడో అంతస్తు ఆరు నెలలుగా మూసే ఉంది. కానీ ప్రతి రాత్రి 2:17కి నర్స్ స్టేషన్‌లో ఫోన్ మోగేది.",
+                "premise": "నైట్ డ్యూటీలో ఉన్న నర్స్ ప్రతి రాత్రి అదే నంబర్ నుంచి కాల్ వింటుంది. రిజిస్టర్‌లో ఆ గది నెలల క్రితమే మూసివేసిందని ఉంటుంది.",
+                "twist": "పాత మందుల చార్ట్‌లో అదే సమయం దగ్గర ఆగిపోయిన చివరి డోస్ కనిపిస్తుంది. చివరికి ఫోన్‌లో వినిపించే గొంతు ధన్యవాదం చెబుతుంది.",
+                "tone": seed.desired_tone,
+                "hook_type": "recurring_realistic_anomaly",
+                "twist_type": "emotional_payoff",
+                "emotional_core": "someone waited for care that arrived too late",
+                "visual_signature": "closed hospital floor, ringing phone, room number 307",
+            },
+            {
+                "title": "చివరి బస్ స్టాప్",
+                "hook": "ఆ బస్ స్టాండ్‌లో రాత్రి చివరి బస్సు వెళ్లాక కూడా ఒక టికెట్ కౌంటర్ లైట్ ఆరేది కాదు.",
+                "premise": "కౌంటర్ మూసి ఉన్నా ప్రతి రాత్రి అదే సీటు నంబర్ కోసం చిల్లర శబ్దం వినిపిస్తుంది.",
+                "twist": "పాత టికెట్ రోల్‌లో ముద్రించని ఒక్క టికెట్ మీద రేపటి తేదీ, అదే ప్రయాణికుడి పేరు కనిపిస్తుంది.",
+                "tone": seed.desired_tone,
+                "hook_type": "local_rumour_object",
+                "twist_type": "ticket_payoff",
+                "emotional_core": "a journey that never finished",
+                "visual_signature": "empty bus stand, counter light, old ticket roll",
+            },
+            {
+                "title": "అద్దె ఇంటి తాళం",
+                "hook": "ఆ అద్దె ఇంట్లో కొత్తగా వచ్చిన వాళ్లందరికీ మొదటి రాత్రే వంటగది తలుపు తానే తెరుచుకునేది.",
+                "premise": "ఇంటి యజమాని అది పాత తాళం సమస్య అంటాడు. కానీ తలుపు తెరుచుకునే సమయం ప్రతి రాత్రి ఒకటే.",
+                "twist": "గోడలో దాచిన పాత బిల్లు మీద అదే సమయం, అదే తలుపు, ఒక మాయం అయిన కుటుంబం పేరు ఉంటుంది.",
+                "tone": seed.desired_tone,
+                "hook_type": "rented_house_detail",
+                "twist_type": "hidden_bill_payoff",
+                "emotional_core": "a house repeating one unfinished moment",
+                "visual_signature": "rented kitchen door, old key, hidden bill",
+            },
+        ]
+        ideas = []
+        while len(ideas) < count:
+            item = dict(base[len(ideas) % len(base)])
+            suffix = len(ideas) + 1
+            item["premise"] = f"{item['premise']} మూల కథలోని {location} వాతావరణాన్ని మాత్రమే ఉంచి, పేర్లు/స్థలం మార్చబడతాయి."
+            ideas.append(
+                StoryIdea(
+                    id=f"real_idea_{suffix:02d}_{uuid.uuid4().hex[:6]}",
+                    category=ContentCategory.SOFT_HORROR,
+                    estimated_duration_seconds=seed.desired_duration_seconds,
+                    originality_notes="Real-story-inspired fictionalized candidate.",
+                    safety_notes=safety.disclaimer,
+                    **item,
+                )
+            )
+        return ideas[:count]
+
+    prompt = f"""Generate {count} premium Telugu Shorts story ideas inspired by a real-story seed.
+
+Return ONLY a valid JSON array. No markdown. Each item must have:
+title, hook, premise, twist, tone, hook_type, twist_type, emotional_core, visual_signature.
+
+Seed:
+{seed.model_dump_json(indent=2)}
+
+Source safety:
+{safety.model_dump_json(indent=2)}
+
+Fictionalization plan:
+{plan.model_dump_json(indent=2)}
+
+Rules:
+- Do NOT claim true story.
+- Make it feel like: "ఇది నిజంగానే జరిగి ఉండొచ్చు."
+- Preserve grounded realism and one concrete local detail.
+- Change names, exact locations, dates, and identifying details.
+- No active case details, no real person accusations, no graphic violence.
+- No generic ghost appearance.
+- Each idea needs one recurring clue and a final payoff with replay value.
+- Natural Telugu hooks only. Avoid English.
+"""
+    raw_items = _provider_generate_json(prompt, provider)
+    ideas: list[StoryIdea] = []
+    for idx, item in enumerate(raw_items[:count], start=1):
+        ideas.append(
+            StoryIdea(
+                id=f"real_idea_{idx:02d}_{uuid.uuid4().hex[:6]}",
+                category=ContentCategory.SOFT_HORROR,
+                estimated_duration_seconds=seed.desired_duration_seconds,
+                originality_notes="AI real-story-inspired fictionalized candidate.",
+                safety_notes=safety.disclaimer,
                 **item,
             )
         )
@@ -507,11 +761,23 @@ def run_editorial_gate(script_text: str, blueprint: StoryBlueprint) -> Editorial
     blockers: list[str] = []
     notes: list[str] = []
 
-    impossible_signals = ["కానీ", "రెండు", "ఆగిపోయ", "ఖాళీ", "తడి", "నీడ", "మోగింది", "తెలియని"]
-    atmosphere_signals = ["వర్షం", "నిశ్శబ్దం", "చీకటి", "గడియారం", "గొంతు", "చేతులు", "లైట్", "తడిగా"]
-    drive_signals = ["వెనక్కి", "నడిచాడు", "చూశాడు", "వినిపించింది", "చదివేసరికి", "తిరిగాడు"]
-    reveal_signals = ["చనిపోయ", "ఐదు సంవత్సరాల", "రిజిస్టర్", "ఫోటో", "ఇప్పుడు", "అదే"]
-    aftershock_signals = ["నీడ", "ఖాళీ", "ఆగిపోయింది", "మళ్లీ", "అతనిది కాదు", "ముసలాయనదే"]
+    impossible_signals = ["కానీ", "రెండు", "ఆగిపోయ", "ఖాళీ", "తడి", "నీడ", "మోగింది", "తెలియని", "మూసే", "307"]
+    atmosphere_signals = [
+        "వర్షం", "నిశ్శబ్దం", "చీకటి", "గడియారం", "గొంతు", "చేతులు", "లైట్", "తడిగా",
+        "ఆసుపత్రి", "నర్స్ స్టేషన్", "ఫోన్", "మందుల", "శ్వాస",
+    ]
+    drive_signals = [
+        "వెనక్కి", "నడిచాడు", "నడిచింది", "చూశాడు", "చూసింది", "వినిపించింది",
+        "చదివేసరికి", "తిరిగాడు", "ఎత్తగానే", "ప్లే చేసింది", "పెట్టింది",
+    ]
+    reveal_signals = [
+        "చనిపోయ", "ఐదు సంవత్సరాల", "రిజిస్టర్", "ఫోటో", "ఇప్పుడు", "అదే",
+        "వాయిస్ మెమో", "మందు", "ఆగిపోయింది", "సమయానికి", "307",
+    ]
+    aftershock_signals = [
+        "నీడ", "ఖాళీ", "ఆగిపోయింది", "మళ్లీ", "అతనిది కాదు", "ముసలాయనదే",
+        "ఈరోజైనా", "సమయానికి", "అమ్మా", "నిశ్శబ్దమైంది",
+    ]
     weak_phrases = [
         "ఏదో రహస్యం",
         "అర్థం కాలేదు",
@@ -554,7 +820,14 @@ def run_editorial_gate(script_text: str, blueprint: StoryBlueprint) -> Editorial
     twist_fairness_score = 55 + min(45, sum(signal in final_300 for signal in reveal_signals) * 8)
     emotional_aftertaste_score = 60 + min(40, sum(signal in final_300 for signal in aftershock_signals) * 10)
     telugu_voice_score = telugu.telugu_authenticity_score
-    visual_clarity_score = 60 + min(40, sum(signal in text for signal in ["ప్లాట్‌ఫామ్", "బెంచ్", "ఫోటో", "గడియారం", "నీడ"]) * 8)
+    visual_clarity_score = 60 + min(
+        40,
+        sum(
+            signal in text
+            for signal in ["ప్లాట్‌ఫామ్", "బెంచ్", "ఫోటో", "గడియారం", "నీడ", "ఆసుపత్రి", "307", "ట్రే", "ఫోన్"]
+        )
+        * 8,
+    )
 
     score_values = [
         hook_score,
@@ -633,7 +906,7 @@ Script:
         score += 8
     if replay_clue and replay_clue in script_text:
         score += 8
-    if any(token in final_line for token in ["ఆగిపోయింది", "నీడ", "ఖాళీ"]):
+    if any(token in final_line for token in ["ఆగిపోయింది", "నీడ", "ఖాళీ", "అమ్మా", "సమయానికి", "నిశ్శబ్దమైంది"]):
         score += 8
     score -= min(20, len(boring) * 5)
     return ScriptCritique(
@@ -824,6 +1097,150 @@ def generate_story_lab_package(
     }
 
 
+def generate_real_story_lab_package(
+    story_dir: Path,
+    seed: RealStorySeed,
+    provider: str | None = None,
+    idea_count: int = 10,
+    top_blueprints: int = 3,
+    script_candidates: int = 3,
+) -> dict[str, Any]:
+    provider = provider or DEFAULT_TEXT_PROVIDER
+    story_dir.mkdir(parents=True, exist_ok=True)
+    (story_dir / "blueprints").mkdir(exist_ok=True)
+    candidate_dir = story_dir / "script_candidates"
+    candidate_dir.mkdir(exist_ok=True)
+    critic_dir = story_dir / "critic_reviews"
+    critic_dir.mkdir(exist_ok=True)
+    rewrite_dir = story_dir / "rewrites"
+    rewrite_dir.mkdir(exist_ok=True)
+    for directory in [candidate_dir, critic_dir, rewrite_dir]:
+        for stale_path in directory.glob("*"):
+            if stale_path.is_file():
+                stale_path.unlink()
+    for stale_script in [story_dir / "script.txt", story_dir / "script_draft.txt"]:
+        if stale_script.exists():
+            stale_script.unlink()
+
+    safety = analyze_source_safety(seed)
+    plan = build_fictionalization_plan(seed, safety)
+    write_json(story_dir / "real_story_seed.json", seed)
+    write_json(story_dir / "source_safety_report.json", safety)
+    write_json(story_dir / "fictionalization_plan.json", plan)
+
+    brief = StoryBrief(
+        story_slug=seed.story_slug,
+        category="real_story_inspired_suspense",
+        target_duration_seconds=seed.desired_duration_seconds,
+        audience=seed.target_audience,
+        tone=seed.desired_tone,
+        location_preference=seed.source_location_type or "localized real-world setting",
+        emotion="grounded fear + doubt + emotional unease",
+        twist_type="realistic mystery payoff with replay clue",
+        avoid=[
+            "true story claim",
+            "exact address",
+            "real person accusation",
+            "active case details",
+            "graphic violence",
+            "generic ghost reveal",
+            "over-explaining",
+        ],
+    )
+    write_json(story_dir / "story_brief.json", brief)
+
+    if not safety.safe_to_dramatize:
+        review_path = write_real_story_lab_review(
+            story_dir=story_dir,
+            seed=seed,
+            safety=safety,
+            plan=plan,
+            scored_ideas=[],
+            selected=[],
+            candidates=[],
+            best=None,
+        )
+        return {
+            "story_dir": story_dir,
+            "review_path": review_path,
+            "blocked": True,
+            "best_candidate": None,
+            "candidate_count": 0,
+        }
+
+    ideas = generate_real_story_idea_bank(seed, safety, plan, count=idea_count, provider=provider)
+    scored = [(idea, score_idea_viral(idea)) for idea in ideas]
+    scored.sort(key=lambda item: item[1].total, reverse=True)
+    selected = scored[:top_blueprints]
+    (story_dir / "ideas.json").write_text(
+        json.dumps([idea.model_dump(mode="json") for idea, _score in scored], ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    (story_dir / "top_ideas.json").write_text(
+        json.dumps(
+            [{"idea": idea.model_dump(mode="json"), "viral_score": score.model_dump()} for idea, score in selected],
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    candidates: list[StoryLabCandidate] = []
+    rewrite_count = 0
+    for idx, (idea, _score) in enumerate(selected, start=1):
+        blueprint = build_advanced_blueprint(idea)
+        blueprint.misdirection = "ప్రేక్షకుడు మొదట దీన్ని స్థానిక రూమర్ లేదా సాధారణ తప్పుగా అనుకోవాలి."
+        blueprint.reveal_mechanism = "ఒక వాస్తవంగా అనిపించే రికార్డు/వస్తువు revealని నిర్ధారిస్తుంది."
+        blueprint.emotional_aftertaste = idea.emotional_core or plan.preserved_core_emotion
+        blueprint.forbidden_elements = sorted(set([*blueprint.forbidden_elements, *plan.forbidden_elements]))
+        write_json(story_dir / "blueprints" / f"blueprint_{idx:02d}.json", blueprint)
+        if idx > script_candidates:
+            continue
+        draft = generate_director_script(blueprint, provider=provider)
+        critique = critique_script(draft, blueprint, provider=provider)
+        (critic_dir / f"candidate_{idx:02d}_review.json").write_text(critique.model_dump_json(indent=2), encoding="utf-8")
+        rewritten, notes = rewrite_with_critique(draft, blueprint, critique, provider=provider)
+        if rewritten != draft or notes:
+            rewrite_count += 1
+            (rewrite_dir / f"rewrite_{rewrite_count:02d}.txt").write_text(rewritten, encoding="utf-8")
+            (rewrite_dir / f"rewrite_{rewrite_count:02d}.meta.json").write_text(
+                json.dumps({"source_candidate": f"candidate_{idx:02d}", "notes": notes}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        final_critique = critique_script(rewritten, blueprint, provider=provider)
+        candidate_id = f"candidate_{idx:02d}"
+        candidate = evaluate_candidate(candidate_id, blueprint, rewritten, final_critique, notes)
+        candidates.append(candidate)
+        (candidate_dir / f"{candidate_id}.txt").write_text(rewritten, encoding="utf-8")
+        (candidate_dir / f"{candidate_id}.meta.json").write_text(candidate.model_dump_json(indent=2), encoding="utf-8")
+
+    candidates.sort(
+        key=lambda c: (
+            1 if c.recommendation == "approve_candidate" else 0,
+            c.editorial_gate.total,
+            c.critique.editor_score,
+            c.quality_score,
+            c.narrative_score,
+        ),
+        reverse=True,
+    )
+    approved_candidates = [candidate for candidate in candidates if candidate.recommendation == "approve_candidate"]
+    best = approved_candidates[0] if approved_candidates else None
+    if best:
+        (story_dir / "script.txt").write_text(best.script_text, encoding="utf-8")
+    elif candidates:
+        (story_dir / "script_draft.txt").write_text(candidates[0].script_text, encoding="utf-8")
+
+    review_path = write_real_story_lab_review(story_dir, seed, safety, plan, scored, selected, candidates, best)
+    return {
+        "story_dir": story_dir,
+        "review_path": review_path,
+        "blocked": False,
+        "best_candidate": best.candidate_id if best else None,
+        "candidate_count": len(candidates),
+    }
+
+
 def write_story_lab_review(
     story_dir: Path,
     brief: StoryBrief,
@@ -906,6 +1323,121 @@ def write_story_lab_review(
                 "",
             ]
         )
+    path = story_dir / "script_review.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def write_real_story_lab_review(
+    story_dir: Path,
+    seed: RealStorySeed,
+    safety: SourceSafetyReport,
+    plan: FictionalizationPlan,
+    scored_ideas: list[tuple[StoryIdea, ViralScore]],
+    selected: list[tuple[StoryIdea, ViralScore]],
+    candidates: list[StoryLabCandidate],
+    best: StoryLabCandidate | None,
+) -> Path:
+    lines = [
+        f"# Real-Story-Inspired Story Lab Review: {seed.story_slug}",
+        "",
+        "## Source Safety",
+        "",
+        f"- Safe to dramatize: {safety.safe_to_dramatize}",
+        f"- Risk level: {safety.risk_level}",
+        f"- Claim style: {safety.claim_style}",
+        f"- Disclaimer: {safety.disclaimer}",
+        f"- Required changes: {', '.join(safety.required_changes) or 'None'}",
+        f"- Blocked reasons: {', '.join(safety.blocked_reasons) or 'None'}",
+        f"- Warnings: {', '.join(safety.warnings) or 'None'}",
+        "",
+        "## Fictionalization Plan",
+        "",
+        f"- Changed names: {plan.changed_names}",
+        f"- Generalized location: {plan.generalized_location}",
+        f"- Changed time period: {plan.changed_time_period}",
+        f"- Preserved emotion: {plan.preserved_core_emotion}",
+        f"- Preserved mystery: {plan.preserved_core_mystery}",
+        f"- Preserved realistic detail: {plan.preserved_realistic_detail}",
+        f"- Fictionalized elements: {', '.join(plan.fictionalized_elements) or 'None'}",
+        f"- Forbidden elements: {', '.join(plan.forbidden_elements) or 'None'}",
+        "",
+    ]
+
+    if not safety.safe_to_dramatize:
+        lines.extend(
+            [
+                "## Blocked",
+                "",
+                "This source was blocked before idea generation. Do not dramatize it without changing the seed.",
+                "",
+            ]
+        )
+        path = story_dir / "script_review.md"
+        path.write_text("\n".join(lines), encoding="utf-8")
+        return path
+
+    lines.extend(["## Top Ideas", ""])
+    for idx, (idea, score) in enumerate(scored_ideas[:10], start=1):
+        marker = "selected" if any(idea.id == selected_idea.id for selected_idea, _ in selected) else "banked"
+        lines.extend(
+            [
+                f"### {idx}. {idea.title} ({marker})",
+                f"- Viral score: {score.total}/100",
+                f"- Hook: {idea.hook}",
+                f"- Twist: {idea.twist}",
+                f"- Realness note: {idea.originality_notes}",
+                f"- Safety note: {idea.safety_notes}",
+                "",
+            ]
+        )
+
+    lines.extend(["## Script Candidates", ""])
+    for candidate in candidates:
+        lines.extend(
+            [
+                f"### {candidate.candidate_id}",
+                f"- Recommendation: {candidate.recommendation}",
+                f"- Editor score: {candidate.critique.editor_score}/100",
+                f"- Narrative score: {candidate.narrative_score}/100",
+                f"- Quality score: {candidate.quality_score}/100",
+                f"- Telugu authenticity: {candidate.telugu_authenticity_score}/100",
+                f"- Continuity: {candidate.continuity_score}/100",
+                f"- Editorial gate: {candidate.editorial_gate.total}/100",
+                f"- Editorial blockers: {', '.join(candidate.editorial_gate.blockers) or 'None'}",
+                f"- Hard failures: {', '.join(candidate.hard_failures) or 'None'}",
+                "",
+                candidate.script_text,
+                "",
+            ]
+        )
+
+    if best:
+        lines.extend(
+            [
+                "## Best Candidate",
+                "",
+                best.candidate_id,
+                "",
+                "## Approval Command",
+                "",
+                f"```bash\npython -m workers.cli approve-script {story_dir} --candidate {best.candidate_id} --notes \"Approved from Real-Story-Inspired Story Lab\"\n```",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "## No Approved Candidate",
+                "",
+                (
+                    "No script cleared the best-in-class real-story-inspired gate. "
+                    "Tighten the fictionalization plan or regenerate before approval."
+                ),
+                "",
+            ]
+        )
+
     path = story_dir / "script_review.md"
     path.write_text("\n".join(lines), encoding="utf-8")
     return path

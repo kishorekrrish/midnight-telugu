@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -963,6 +964,77 @@ def generate_story_lab_package_cmd(
             f"[yellow]python -m workers.cli approve-script {ws.root} "
             f"--candidate {result['best_candidate']} --notes \"Approved from Story Lab\"[/yellow]"
         )
+
+
+@app.command("generate-real-story-lab-package")
+def generate_real_story_lab_package_cmd(
+    story_slug: str = typer.Argument(..., help="Story slug, e.g. hospital-room-307"),
+    seed_json: Path | None = typer.Option(None, "--seed-json", help="Path to a RealStorySeed JSON file"),
+    source_summary: str = typer.Option("", "--source-summary", help="Real-story seed/source summary"),
+    source_type: str = typer.Option("local_rumour", "--source-type", help="local_rumour, folklore, public_anecdote, reported_incident, family_story, unexplained_event, news_inspired, fictionalized_realism"),
+    source_location_type: str | None = typer.Option(None, "--location-type", help="hospital, railway_station, village, bus_stand, rented_house, etc."),
+    source_confidence: str = typer.Option("unverified", "--source-confidence", help="verified, reported, folklore, rumour, unverified, fictionalized"),
+    real_names_present: bool = typer.Option(False, "--real-names-present/--no-real-names-present"),
+    exact_location_present: bool = typer.Option(False, "--exact-location-present/--no-exact-location-present"),
+    active_case: bool = typer.Option(False, "--active-case/--no-active-case"),
+    minors_involved: bool = typer.Option(False, "--minors-involved/--no-minors-involved"),
+    graphic_violence: bool = typer.Option(False, "--graphic-violence/--no-graphic-violence"),
+    accusation_against_real_person: bool = typer.Option(False, "--real-person-accusation/--no-real-person-accusation"),
+    ideas: int = typer.Option(10, "--ideas", min=3, max=20),
+    provider: str = typer.Option("openai", "--provider", help="Text provider for Story Lab generation"),
+) -> None:
+    """Run Phase 1A Real-Story-Inspired Story Lab with safety and fictionalization gates."""
+    from workers.config import ALLOW_MOCK_PRODUCTION
+    from workers.story_lab import RealStorySeed
+    from workers.story_lab import (
+        generate_real_story_lab_package as _generate_real_story_lab_package,
+    )
+    from workers.story_workspace import StoryWorkspace
+
+    if provider == "mock" and not ALLOW_MOCK_PRODUCTION:
+        _fail("Mock Story Lab provider is disabled for production. Set MIDNIGHT_TELUGU_TEST_MODE=1 only in tests.")
+
+    if seed_json:
+        seed = RealStorySeed.model_validate(json.loads(seed_json.read_text(encoding="utf-8")))
+    else:
+        if not source_summary.strip():
+            _fail("Provide --source-summary or --seed-json for real-story-inspired generation.")
+        seed = RealStorySeed(
+            story_slug=story_slug,
+            source_type=source_type,
+            source_summary=source_summary,
+            source_location_type=source_location_type,
+            source_confidence=source_confidence,
+            real_names_present=real_names_present,
+            exact_location_present=exact_location_present,
+            active_case=active_case,
+            minors_involved=minors_involved,
+            graphic_violence=graphic_violence,
+            accusation_against_real_person=accusation_against_real_person,
+        )
+
+    ws = StoryWorkspace.from_arg(seed.story_slug, create=True)
+    result = _generate_real_story_lab_package(
+        ws.root,
+        seed=seed,
+        provider=provider,
+        idea_count=ideas,
+        top_blueprints=3,
+        script_candidates=3,
+    )
+    console.print(f"[green]✓[/green] Real-Story-Inspired Story Lab package created: {result['story_dir']}")
+    console.print(f"Review package: [cyan]{result['review_path']}[/cyan]")
+    console.print(f"Candidates: {result['candidate_count']}")
+    if result["blocked"]:
+        console.print("[red]Source blocked by safety gate. No ideas or scripts generated.[/red]")
+    elif result["best_candidate"]:
+        console.print(
+            "Approve only after manual review: "
+            f"[yellow]python -m workers.cli approve-script {ws.root} "
+            f"--candidate {result['best_candidate']} --notes \"Approved from Real-Story-Inspired Story Lab\"[/yellow]"
+        )
+    else:
+        console.print("[yellow]No candidate cleared the best-in-class gate. Review script_review.md before regenerating.[/yellow]")
 
 
 @app.command("approve-script")

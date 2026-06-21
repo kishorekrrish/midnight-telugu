@@ -2,7 +2,71 @@
 
 Midnight Telugu should optimize story quality before media automation.
 
-Primary flow:
+Primary flow is now Real-Story-Inspired Story Lab:
+
+```bash
+python -m workers.cli generate-real-story-lab-package hospital-room-307 \
+  --source-summary "A closed hospital floor reportedly received the same phone call every night." \
+  --source-type local_rumour \
+  --location-type hospital \
+  --source-confidence rumour
+```
+
+This creates:
+
+```text
+stories/<slug>/
+  real_story_seed.json
+  source_safety_report.json
+  fictionalization_plan.json
+  story_brief.json
+  ideas.json
+  top_ideas.json
+  blueprints/
+    blueprint_01.json
+    blueprint_02.json
+    blueprint_03.json
+  script_candidates/
+    candidate_01.txt
+    candidate_01.meta.json
+    candidate_02.txt
+    candidate_02.meta.json
+    candidate_03.txt
+    candidate_03.meta.json
+  critic_reviews/
+    candidate_01_review.json
+    candidate_02_review.json
+    candidate_03_review.json
+  rewrites/
+  script_review.md
+  script.txt        # only when a candidate clears the best-in-class gate
+  script_draft.txt  # highest-ranked draft when nothing clears the gate
+```
+
+Real-story safety rules:
+
+```text
+Do not claim true story unless verified.
+Prefer inspired by real incidents/local stories/folklore.
+Change names and identifying details.
+Avoid exact addresses.
+Avoid active cases.
+Do not accuse real people.
+Avoid graphic violence.
+Do not exploit recent tragedies.
+```
+
+The safety gate blocks:
+
+```text
+active case
+real person accusation
+real name with exact location
+graphic violence as core appeal
+sensitive minor harm
+```
+
+Legacy fictional Story Lab is still available:
 
 ```bash
 python -m workers.cli generate-story-lab-package chandra-last-train --ideas 10 --top-blueprints 3 --scripts-per-blueprint 3 --max-candidates 5

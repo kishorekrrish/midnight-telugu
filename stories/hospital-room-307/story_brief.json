@@ -1,0 +1,19 @@
+{
+  "story_slug": "hospital-room-307",
+  "category": "real_story_inspired_suspense",
+  "target_duration_seconds": 50,
+  "audience": "Telugu YouTube Shorts audience, 18-45",
+  "tone": "restrained horror mystery",
+  "location_preference": "hospital",
+  "emotion": "grounded fear + doubt + emotional unease",
+  "twist_type": "realistic mystery payoff with replay clue",
+  "avoid": [
+    "true story claim",
+    "exact address",
+    "real person accusation",
+    "active case details",
+    "graphic violence",
+    "generic ghost reveal",
+    "over-explaining"
+  ]
+}

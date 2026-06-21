@@ -1,0 +1,52 @@
+{
+  "id": "blueprint_207d9766",
+  "idea_id": "real_idea_01_8018df",
+  "title": "ఆ రూమ్ 307",
+  "category": "soft_horror",
+  "protagonist_name": "రవి",
+  "protagonist_role": "ప్రధాన పాత్ర",
+  "point_of_view": "third_person",
+  "hook": "ఏం జరుగుతోంది? 307 నెంబర్ ఎలా మాటలాడుతున్న దానితో?",
+  "central_question": "రవి‌కి కనిపించిన పాత ఉత్తరం వెనక దాచిన నిజం ఏమిటి?",
+  "primary_story_device": "పాత ఉత్తరం",
+  "primary_clue": "పాత ఫోటో",
+  "supporting_clues": [
+    "తేదీ"
+  ],
+  "setup": "ఒక నర్సు, రాత్రిళ్ళలో 307 అనే నెంబర్ నుండి వచ్చిన అజ్ఞాత కాల్స్‌ను అనుభవిస్తుంది, కాని ఆ రూమ్ మూసివేయబడింది.",
+  "escalation": "రవి‌కి కనిపించిన ప్రతి చిన్న జాడ అదే ప్రశ్నను మరింత గట్టిగా నిలబెడుతుంది.",
+  "reveal": "ఆ కాల్స్ వచ్చేవరకు ఒక భయంకరమైన గాంధీని చూడలేక పోయింది.",
+  "final_twist": "పాత ఫోటోనే చివరికి ఆ కాల్స్ వచ్చేవరకు ఒక భయంకరమైన గాంధీని చూడలేక పోయింది అని నిర్ధారించే జాడగా మారుతుంది.",
+  "final_line": "రవి చేతిలో ఇంకా పాత ఫోటోనే ఉంది. అదే అతని జీవితాన్ని మార్చిన చివరి సాక్ష్యం.",
+  "locations": [
+    "పాత ఇల్లు"
+  ],
+  "forbidden_elements": [
+    "Avoid exact addresses and real institutions.",
+    "Change names and identifying details.",
+    "Present as inspired/dramatized, not verified truth.",
+    "active case details",
+    "exact address",
+    "graphic violence",
+    "real person accusation",
+    "recent tragedy exploitation",
+    "true story claim",
+    "కొత్త పాత్ర",
+    "పాత ఉత్తరం",
+    "యాదృచ్ఛికంగా వచ్చిన పాత చీర",
+    "సంబంధం లేని వస్తువు"
+  ],
+  "opening_image": "నర్సు నిద్ర లేని రాత్రుల మధ్య చీకటిలో ఉన్న హాస్పిటల్ రూమ్",
+  "first_3_seconds_hook": "ఏం జరుగుతోంది? 307 నెంబర్ ఎలా మాటలాడుతున్న దానితో?",
+  "protagonist_desire": "అక్కడి నుంచి సురక్షితంగా బయటపడాలి.",
+  "hidden_truth": "ఆ కాల్స్ వచ్చేవరకు ఒక భయంకరమైన గాంధీని చూడలేక పోయింది.",
+  "early_clue": "పాత ఫోటో",
+  "misdirection": "ప్రేక్షకుడు మొదట దీన్ని స్థానిక రూమర్ లేదా సాధారణ తప్పుగా అనుకోవాలి.",
+  "midpoint_turn": "రవి‌కి కనిపించిన ప్రతి చిన్న జాడ అదే ప్రశ్నను మరింత గట్టిగా నిలబెడుతుంది.",
+  "reveal_mechanism": "ఒక వాస్తవంగా అనిపించే రికార్డు/వస్తువు revealని నిర్ధారిస్తుంది.",
+  "final_recontextualization": "పాత ఫోటోనే చివరికి ఆ కాల్స్ వచ్చేవరకు ఒక భయంకరమైన గాంధీని చూడలేక పోయింది అని నిర్ధారించే జాడగా మారుతుంది.",
+  "replay_value_clue": "పాత ఫోటో",
+  "emotional_aftertaste": "అసూటి మరియు భయం",
+  "created_at": "2026-06-21T07:56:36.246218Z",
+  "updated_at": "2026-06-21T07:56:36.246221Z"
+}

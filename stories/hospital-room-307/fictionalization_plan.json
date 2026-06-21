@@ -1,0 +1,29 @@
+{
+  "story_slug": "hospital-room-307",
+  "changed_names": true,
+  "generalized_location": true,
+  "changed_time_period": true,
+  "changed_profession_or_relationships": false,
+  "removed_accusations": true,
+  "preserved_core_emotion": "fear mixed with doubt: this could have happened nearby",
+  "preserved_core_mystery": "an unexplained recurring detail around a hospital",
+  "preserved_realistic_detail": "A closed hospital floor reportedly received the same phone call every night",
+  "fictionalized_elements": [
+    "Changed all personal names.",
+    "Generalized the location.",
+    "Changed the exact time period.",
+    "Compressed events into a 45-60 second Telugu Shorts structure.",
+    "Added one cinematic recurring clue for replay value."
+  ],
+  "forbidden_elements": [
+    "true story claim",
+    "exact address",
+    "real person accusation",
+    "active case details",
+    "graphic violence",
+    "recent tragedy exploitation",
+    "Avoid exact addresses and real institutions.",
+    "Change names and identifying details.",
+    "Present as inspired/dramatized, not verified truth."
+  ]
+}

@@ -10,6 +10,8 @@ _OBJECT_ALIASES = {
     "చివరి రైలు": {"చివరి రైలు", "రైలు"},
     "వాయిస్ మెమో": {"వాయిస్ మెమో", "రికార్డింగ్", "గొంతు"},
     "పాత ఫోటో": {"పాత ఫోటో", "ఫోటో", "photograph"},
+    "మందుల చార్ట్": {"మందుల చార్ట్", "చార్ట్"},
+    "మందుల ట్రే": {"మందుల ట్రే", "ట్రే"},
     "పిల్లాడు గీసిన బొమ్మ": {"పిల్లాడు గీసిన బొమ్మ", "పాప గీసిన బొమ్మ", "బొమ్మ"},
     "పెట్టె": {"పెట్టె", "పాత పెట్టె"},
     "స్టేషన్ మాస్టర్ రిజిస్టర్": {"స్టేషన్ మాస్టర్ రిజిస్టర్", "రిజిస్టర్"},
@@ -49,6 +51,8 @@ def _matches_expected(expected: str, candidates: list[str]) -> bool:
 def _location_matches(expected: str, actual: str) -> bool:
     expected_root = expected.replace(" గట్టు", "").replace(" దగ్గర", "").strip()
     actual_root = actual.replace(" గట్టు", "").replace(" దగ్గర", "").strip()
+    if expected == "ఆసుపత్రి" and actual in {"గది", "స్టేషన్"}:
+        return True
     return (
         expected == actual
         or expected in actual

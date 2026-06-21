@@ -1,0 +1,66 @@
+{
+  "candidate_id": "candidate_03",
+  "blueprint_id": "blueprint_581f7280",
+  "idea_id": "real_idea_02_3885f4",
+  "script_text": "రవి పాత ఇల్లులో అడుగు పెట్టగానే, 307 నెంబర్ నుంచి మౌన కాల్ వినిపించింది. ఫోన్ రింగింగ్ అవుతోంది, కానీ ఎవరు మాట్లాడటం లేదు. అతని మనసులో ప్రశ్నలు తిరుగుతున్నాయి.\n\nఅతనంతా భయంతో కసాయి ఫోన్ పట్టుకున్నాడు. ఆ పాత ఫోటో, ఒక పేషెంట్, మరణానికి ముందు జరిగిన చర్చల్ని గుర్తుకు తెస్తోంది. \"ఆ కాల్స్ వెనుక ఏం escondido ఉంది?\" అని అతను ఆలోచించాడు.\n\nప్రతి మౌన కాల్, అతనికి అదే తీరాలో కొత్త దారులను చూపిస్తుంది. రవి చేతిలో ఉన్న పాత ఉత్తరం మాత్రం అతనికి ఆ రహస్యం తెలియజేయేందుకు సిద్ధంగా ఉంది. ఆ ఉత్తరం, ఆనాటి చర్చల దారితీస్తోంది, మరణం ఇంత దగ్గరగా ఉందని అతనికి తెలియజేయడం కోసం.\n\nఫోటోని మళ్లీ చూసి, రవి తన గుండెను నొక్కుతుంది. \"ఇది నా చివరి సాక్ష్యం,\" అని అతను అనుకున్నాడు. ఆ పాత ఉనికి, పాత చర్చలు, అన్నీ అతని స్వప్నాన్ని నాశనం చేయడానికి సిద్ధంగా ఉన్నాయి.",
+  "critique": {
+    "would_stop_scroll": true,
+    "predicted_drop_points": [
+      "రవి చేతిలో ఉన్న పాత ఉత్తరం మాత్రం అతనికి ఆ రహస్యం తెలియజేయేందుకు సిద్ధంగా ఉంది."
+    ],
+    "predictable_twist": false,
+    "final_line_strength": 8,
+    "comment_potential": "Viewer may comment about the clock/photo clue.",
+    "replay_clue": "పాత ఫోటో",
+    "boring_sentences": [
+      "రవి చేతిలో ఉన్న పాత ఉత్తరం మాత్రం అతనికి ఆ రహస్యం తెలియజేయేందుకు సిద్ధంగా ఉంది."
+    ],
+    "required_fixes": [
+      "Remove flat summary sentences.",
+      "Make final line more chilling."
+    ],
+    "editor_score": 81
+  },
+  "rewrite_notes": [
+    "Remove flat summary sentences.",
+    "Make final line more chilling."
+  ],
+  "narrative_score": 76,
+  "quality_score": 90,
+  "telugu_authenticity_score": 100,
+  "continuity_score": 90,
+  "editorial_gate": {
+    "hook_score": 78,
+    "atmosphere_score": 60,
+    "narrative_drive_score": 68,
+    "twist_fairness_score": 63,
+    "emotional_aftertaste_score": 70,
+    "telugu_voice_score": 100,
+    "visual_clarity_score": 68,
+    "total": 72,
+    "blockers": [
+      "TOO_FEW_BREATH_BEATS",
+      "LOW_HOOK:78",
+      "LOW_ATMOSPHERE:60",
+      "LOW_NARRATIVE_DRIVE:68",
+      "LOW_TWIST_FAIRNESS:63",
+      "LOW_EMOTIONAL_AFTERTASTE:70",
+      "LOW_VISUAL_CLARITY:68"
+    ],
+    "notes": [
+      "Overall editorial score is below best-in-class threshold."
+    ]
+  },
+  "hard_failures": [
+    "PROMISED_REVEAL_NOT_SHOWN",
+    "REVEAL_NOT_EXPLICIT",
+    "TOO_FEW_BREATH_BEATS",
+    "LOW_HOOK:78",
+    "LOW_ATMOSPHERE:60",
+    "LOW_NARRATIVE_DRIVE:68",
+    "LOW_TWIST_FAIRNESS:63",
+    "LOW_EMOTIONAL_AFTERTASTE:70",
+    "LOW_VISUAL_CLARITY:68"
+  ],
+  "recommendation": "needs_rewrite"
+}

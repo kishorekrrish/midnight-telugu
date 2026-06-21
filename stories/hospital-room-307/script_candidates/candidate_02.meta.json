@@ -1,0 +1,67 @@
+{
+  "candidate_id": "candidate_02",
+  "blueprint_id": "blueprint_207d9766",
+  "idea_id": "real_idea_01_8018df",
+  "script_text": "ఒక రాత్రి, చీకటిలో నర్సు ఆమె హాస్పిటల్ గది 307 నుండి వస్తున్న అగ్ని కాల్స్ తో ఉక్కిరిబిక్కిరి అవుతోంది. ఆ రూమ్ చాల రోజుల కిందట మూసివేయబడింది, కానీ ఆ కాల్స్ ఆ స్థలాన్ని తాకుతున్నాయి. \n\nరవి పాత ఇల్లు దగ్గరగా ఉన్నప్పుడు, అతనికి ఒక పాత ఫోటో కనుగొనబడింది. ఆ ఫోటోలోని ముఖం అణచివేయని భయంకరమైన నవ్వుతో నిండి ఉంది. \"ఇది ఎవరు?\" అంటూ అతనికి సందేహాల గిడి మొదలైంది. \n\nసమయం పయనించింది, ప్రతి పది నిమిషాలకొకసారి ఆ కాల్స్ మరింత వేగంగా వచ్చాయి, ఆయన కోరికలు చల్లగా మారడానికి ఉత్కంఠను పెంచుతున్నాయి. ఆ కాల్స్ అతనికి రహస్యాన్ని బహిర్గతం చేస్తున్నాయనే భావనతో, అతను తన గతాన్ని తలచుకుంటున్నాడు. \n\nఅయితే, ఆ పాత ఫోటోనే అతనిని నరకంలోకి తీసుకువడుతున్నది. రవి చేతిలో ఆ ఫోటో ఇంకా ఉంది, అది చివరికి అతనికి మౌనంగా పాడుతున్న ఒక నిష్టురమైన గాధగా మారింది.",
+  "critique": {
+    "would_stop_scroll": true,
+    "predicted_drop_points": [],
+    "predictable_twist": true,
+    "final_line_strength": 7,
+    "comment_potential": "Viewer may comment about the clock/photo clue.",
+    "replay_clue": "పాత ఫోటో",
+    "boring_sentences": [],
+    "required_fixes": [
+      "Remove flat summary sentences.",
+      "Make final line more chilling."
+    ],
+    "editor_score": 78
+  },
+  "rewrite_notes": [
+    "Remove flat summary sentences.",
+    "Make final line more chilling."
+  ],
+  "narrative_score": 36,
+  "quality_score": 81,
+  "telugu_authenticity_score": 100,
+  "continuity_score": 78,
+  "editorial_gate": {
+    "hook_score": 78,
+    "atmosphere_score": 66,
+    "narrative_drive_score": 60,
+    "twist_fairness_score": 63,
+    "emotional_aftertaste_score": 60,
+    "telugu_voice_score": 100,
+    "visual_clarity_score": 68,
+    "total": 70,
+    "blockers": [
+      "TOO_FEW_BREATH_BEATS",
+      "PRIMARY_DEVICE_NOT_VISIBLE",
+      "LOW_HOOK:78",
+      "LOW_ATMOSPHERE:66",
+      "LOW_NARRATIVE_DRIVE:60",
+      "LOW_TWIST_FAIRNESS:63",
+      "LOW_EMOTIONAL_AFTERTASTE:60",
+      "LOW_VISUAL_CLARITY:68"
+    ],
+    "notes": [
+      "Overall editorial score is below best-in-class threshold."
+    ]
+  },
+  "hard_failures": [
+    "PRIMARY_DEVICE_MISSING",
+    "UNPLANNED_LOCATION",
+    "PROMISED_REVEAL_NOT_SHOWN",
+    "REVEAL_NOT_EXPLICIT",
+    "AMBIGUOUS_OBJECT_REFERENCE",
+    "TOO_FEW_BREATH_BEATS",
+    "PRIMARY_DEVICE_NOT_VISIBLE",
+    "LOW_HOOK:78",
+    "LOW_ATMOSPHERE:66",
+    "LOW_NARRATIVE_DRIVE:60",
+    "LOW_TWIST_FAIRNESS:63",
+    "LOW_EMOTIONAL_AFTERTASTE:60",
+    "LOW_VISUAL_CLARITY:68"
+  ],
+  "recommendation": "needs_rewrite"
+}

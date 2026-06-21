@@ -5,7 +5,11 @@ Midnight Telugu now supports a local clip-based Shorts production flow under `st
 Story quality comes first. For new stories, start with Story Lab Phase 1A:
 
 ```bash
-python -m workers.cli generate-story-lab-package chandra-last-train --ideas 10 --top-blueprints 3 --scripts-per-blueprint 3 --max-candidates 5
+python -m workers.cli generate-real-story-lab-package hospital-room-307 \
+  --source-summary "A closed hospital floor reportedly received the same phone call every night." \
+  --source-type local_rumour \
+  --location-type hospital \
+  --source-confidence rumour
 ```
 
 After manual script approval, continue with the media pipeline below.

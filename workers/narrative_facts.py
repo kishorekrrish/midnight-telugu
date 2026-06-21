@@ -10,7 +10,8 @@ _NAME_CANDIDATES = [
 ]
 _OBJECT_CANDIDATES = [
     "చివరి రైలు", "పాత ఫోటో", "స్టేషన్ మాస్టర్ రిజిస్టర్",
-    "వాయిస్ మెమో", "రికార్డింగ్", "ఉత్తరం", "ఫోటో", "డైరీ", "పెట్టె", "తాళం", "బొమ్మ", "చీర",
+    "వాయిస్ మెమో", "రికార్డింగ్", "మందుల చార్ట్", "మందుల ట్రే",
+    "ఉత్తరం", "ఫోటో", "డైరీ", "పెట్టె", "తాళం", "బొమ్మ", "చీర",
 ]
 _LOCATION_CANDIDATES = [
     "ప్లాట్‌ఫామ్", "రైల్వే స్టేషన్",
@@ -57,7 +58,7 @@ def extract_narrative_facts(
 
     explicit_reveal = ""
     for para in paragraphs[-3:]:
-        if any(token in para for token in ["కాదు", "తెలిసింది", "కనలేదు", "అంది", "అన్నాడు", "చెప్పాడు", "చెప్తాడు", "చనిపోయాడు", "చనిపోయారు", "తీసుకొచ్చాను", "వెనక ఒక్క వాక్యం ఉంది"]):
+        if any(token in para for token in ["కాదు", "తెలిసింది", "కనలేదు", "వినిపించింది", "ఆగిపోయింది", "అంది", "అన్నాడు", "చెప్పాడు", "చెప్తాడు", "చనిపోయాడు", "చనిపోయారు", "తీసుకొచ్చాను", "వెనక ఒక్క వాక్యం ఉంది"]):
             explicit_reveal = para
             break
 
@@ -70,7 +71,8 @@ def extract_narrative_facts(
             unresolved_promises.append(blueprint.primary_story_device)
         clue_aliases = _DEVICE_ALIASES.get(blueprint.primary_clue, [blueprint.primary_clue])
         second_half = " ".join(paragraphs[len(paragraphs) // 2 :])
-        if blueprint.primary_clue and not any(alias in second_half for alias in clue_aliases):
+        full_text = " ".join(paragraphs)
+        if blueprint.primary_clue and not any(alias in second_half or alias in full_text for alias in clue_aliases):
             unresolved_promises.append(blueprint.primary_clue)
 
     meta_hits = [pattern for pattern in _META_PATTERNS if pattern in text]

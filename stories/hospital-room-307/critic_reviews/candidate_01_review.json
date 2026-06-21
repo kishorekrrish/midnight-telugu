@@ -1,0 +1,14 @@
+{
+  "would_stop_scroll": true,
+  "predicted_drop_points": [],
+  "predictable_twist": true,
+  "final_line_strength": 7,
+  "comment_potential": "Viewer may comment about the clock/photo clue.",
+  "replay_clue": "పాత ఫోటో",
+  "boring_sentences": [],
+  "required_fixes": [
+    "Remove flat summary sentences.",
+    "Make final line more chilling."
+  ],
+  "editor_score": 78
+}

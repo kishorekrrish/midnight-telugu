@@ -1,0 +1,16 @@
+{
+  "story_slug": "hospital-room-307",
+  "safe_to_dramatize": true,
+  "risk_level": "medium",
+  "claim_style": "fictionalized_realism",
+  "required_changes": [
+    "Avoid exact addresses and real institutions.",
+    "Change names and identifying details.",
+    "Present as inspired/dramatized, not verified truth."
+  ],
+  "blocked_reasons": [],
+  "warnings": [
+    "Source is not verified; do not claim this is a true story."
+  ],
+  "disclaimer": "Inspired by real incidents and local stories. Names and details changed for privacy."
+}

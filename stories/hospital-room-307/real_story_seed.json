@@ -1,0 +1,18 @@
+{
+  "story_slug": "hospital-room-307",
+  "source_type": "local_rumour",
+  "source_summary": "A closed hospital floor reportedly received the same phone call every night. The number on the nurse station display was always 307, even though that room had been shut for months.",
+  "source_language": "te-IN",
+  "source_location_type": "hospital",
+  "source_confidence": "rumour",
+  "known_sensitive_details": [],
+  "real_names_present": false,
+  "exact_location_present": false,
+  "active_case": false,
+  "minors_involved": false,
+  "graphic_violence": false,
+  "accusation_against_real_person": false,
+  "desired_tone": "restrained horror mystery",
+  "desired_duration_seconds": 50,
+  "target_audience": "Telugu YouTube Shorts audience, 18-45"
+}
