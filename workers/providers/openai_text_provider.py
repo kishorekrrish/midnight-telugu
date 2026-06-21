@@ -25,9 +25,18 @@ class OpenAITextProvider(BaseTextProvider):
         client = openai.OpenAI(api_key=self._api_key)
         response = client.chat.completions.create(
             model=self._model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=1024,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert Telugu suspense writer for short-form narration. "
+                        "Write natural, cinematic Telugu with precise story continuity."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.85,
+            max_tokens=1800,
         )
         text = response.choices[0].message.content or ""
         return text.strip()

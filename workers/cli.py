@@ -753,9 +753,17 @@ def _pilot_idea(slug: str):
             id="idea_chandra_last_train",
             title="చంద్ర చివరి రైలు",
             category=ContentCategory.STRANGE_EVENT,
-            hook="చివరి రైలు పోయిన తర్వాత కూడా చంద్రకి ప్లాట్‌ఫామ్ మీద ఒక ముసలాయన కనిపించాడు.",
-            premise="చంద్ర రాత్రి ఖాళీ రైల్వే స్టేషన్‌లో చివరి రైలు కోసం ఎదురుచూస్తాడు. ఒక ముసలాయన అతనితో బెంచ్ మీద కూర్చుని రైలు గురించి హెచ్చరిస్తాడు.",
-            twist="ఆ ముసలాయన అదే స్టేషన్‌లో ఐదు సంవత్సరాల క్రితం చివరి రైలు కోసం ఎదురు చూస్తూ చనిపోయాడని స్టేషన్ మాస్టర్ చెప్తాడు.",
+            hook="రాత్రి 12:17కి చివరి రైలు వెళ్లిపోయింది. కానీ ఖాళీ ప్లాట్‌ఫామ్ మీద ఒక ముసలాయన చంద్రని చూసి, “ఇంకా ఎక్కకు” అన్నాడు.",
+            premise=(
+                "చంద్ర వర్షం తడిసిన చిన్న రైల్వే స్టేషన్‌లో ఒంటరిగా చిక్కుకుపోతాడు. "
+                "ఫోన్ సిగ్నల్ లేదు. స్టేషన్ గడియారం 12:17 దగ్గర ఆగిపోయి ఉంటుంది. "
+                "బెంచ్ మీద కూర్చున్న ముసలాయన మాత్రం చంద్ర గురించి ముందే తెలిసినట్టుగా చివరి రైలు ఎక్కొద్దని హెచ్చరిస్తాడు."
+            ),
+            twist=(
+                "స్టేషన్ మాస్టర్ గదిలోని పాత ఫోటోలో అదే ముసలాయన, అదే బెంచ్, అదే 12:17 గడియారం కనిపిస్తాయి. "
+                "ఆ ముసలాయన ఐదు సంవత్సరాల క్రితం ఇదే రాత్రి చివరి రైలు కోసం ఎదురు చూస్తూ చనిపోయాడు. "
+                "చంద్ర వెనక్కి చూసేసరికి బెంచ్ ఖాళీగా ఉంటుంది."
+            ),
             tone="restrained Telugu supernatural suspense",
             estimated_duration_seconds=55,
             hook_type="mysterious_stranger",
@@ -837,12 +845,16 @@ def generate_story_package(
     from workers.config import ALLOW_MOCK_PRODUCTION
     from workers.io_utils import write_json
     from workers.models import HumanizedScript
+    from workers.narrative_facts import extract_narrative_facts
+    from workers.narrative_validator import validate_narrative
     from workers.script_director import direct_script
     from workers.script_generator import generate_script as _gen_script
     from workers.script_quality import validate_script
     from workers.story_blueprint import build_blueprint
+    from workers.story_continuity import check_continuity
     from workers.story_workspace import StoryWorkspace
     from workers.telugu_humanizer import humanize_script as _humanize
+    from workers.telugu_quality import check_telugu_quality
 
     if provider == "mock":
         if not ALLOW_MOCK_PRODUCTION:
@@ -867,33 +879,44 @@ def generate_story_package(
         humanized = _humanize(script, provider=provider)
         directed = direct_script(humanized, blueprint=blueprint, provider_name=provider, max_attempts=2)
         text = directed.directed_script
+        if directed.quality_score < 80 and directed.narrative_score < 90:
+            text = humanized.full_script_telugu
         quality = validate_script(
-            HumanizedScript(
-                id=f"{candidate_id}_directed",
-                script_id=humanized.id,
-                title=humanized.title,
-                category=humanized.category,
-                hook_line=humanized.hook_line,
-                full_script_telugu=text,
-                estimated_duration_seconds=humanized.estimated_duration_seconds,
-            )
+            saved_script := HumanizedScript(
+                    id=f"{candidate_id}_directed",
+                    script_id=humanized.id,
+                    title=humanized.title,
+                    category=humanized.category,
+                    hook_line=humanized.hook_line,
+                    full_script_telugu=text,
+                    estimated_duration_seconds=humanized.estimated_duration_seconds,
+                )
+        )
+        narrative = validate_narrative(blueprint, extract_narrative_facts(saved_script, blueprint), saved_script.hook_line)
+        telugu = check_telugu_quality(text)
+        continuity = check_continuity(saved_script)
+        approved = (
+            not narrative.hard_failures
+            and quality.publish_recommendation == "approve_candidate"
+            and telugu.telugu_authenticity_score >= 90
+            and continuity.continuity_score >= 90
         )
         meta = {
             "candidate_id": candidate_id,
             "source_script_id": script.id,
-            "narrative_score": directed.narrative_score,
+            "narrative_score": narrative.score,
             "quality_score": quality.quality_score,
-            "telugu_authenticity_score": directed.telugu_authenticity_score,
-            "continuity_score": directed.continuity_score,
-            "hard_failures": directed.hard_failures,
-            "recommendation": directed.recommendation,
-            "approved_for_scene_planning": directed.approved_for_scene_planning,
+            "telugu_authenticity_score": telugu.telugu_authenticity_score,
+            "continuity_score": continuity.continuity_score,
+            "hard_failures": narrative.hard_failures,
+            "recommendation": "approve_candidate" if approved else "needs_rewrite",
+            "approved_for_scene_planning": approved,
         }
         ws.path("script_candidates", f"{candidate_id}.txt").write_text(text, encoding="utf-8")
         ws.write_json(f"script_candidates/{candidate_id}.meta.json", meta)
         candidates.append({"candidate_id": candidate_id, "text": text, "meta": meta})
-        rank = directed.narrative_score + directed.telugu_authenticity_score + directed.continuity_score + quality.quality_score
-        if not directed.hard_failures and rank > best_score:
+        rank = narrative.score + telugu.telugu_authenticity_score + continuity.continuity_score + quality.quality_score
+        if approved and rank > best_score:
             best_id = candidate_id
             best_score = rank
 
@@ -901,6 +924,43 @@ def generate_story_package(
     console.print(f"[green]✓[/green] Story package created: {ws.root}")
     console.print(f"Review package: [cyan]{review_path}[/cyan]")
     console.print(f"Approve with: [yellow]python -m workers.cli approve-script {ws.root} --candidate {best_id} --notes \"Approved for pilot\"[/yellow]")
+
+
+@app.command("generate-story-lab-package")
+def generate_story_lab_package_cmd(
+    story_slug: str = typer.Argument(..., help="Story slug, e.g. chandra-last-train"),
+    ideas: int = typer.Option(10, "--ideas", min=3, max=20, help="Number of ideas to generate"),
+    top_blueprints: int = typer.Option(3, "--top-blueprints", min=1, max=5),
+    scripts_per_blueprint: int = typer.Option(3, "--scripts-per-blueprint", min=1, max=5),
+    provider: str = typer.Option("openai", "--provider", help="Text provider for Story Lab generation"),
+) -> None:
+    """Run Story Lab Phase 1: ideas, viral scoring, blueprints, critique, rewrite, review."""
+    from workers.config import ALLOW_MOCK_PRODUCTION
+    from workers.story_lab import default_story_brief
+    from workers.story_lab import generate_story_lab_package as _generate_story_lab_package
+    from workers.story_workspace import StoryWorkspace
+
+    if provider == "mock" and not ALLOW_MOCK_PRODUCTION:
+        _fail("Mock Story Lab provider is disabled for production. Set MIDNIGHT_TELUGU_TEST_MODE=1 only in tests.")
+
+    ws = StoryWorkspace.from_arg(story_slug, create=True)
+    result = _generate_story_lab_package(
+        ws.root,
+        brief=default_story_brief(ws.slug),
+        provider=provider,
+        idea_count=ideas,
+        top_blueprints=top_blueprints,
+        scripts_per_blueprint=scripts_per_blueprint,
+    )
+    console.print(f"[green]✓[/green] Story Lab package created: {result['story_dir']}")
+    console.print(f"Review package: [cyan]{result['review_path']}[/cyan]")
+    console.print(f"Candidates: {result['candidate_count']}")
+    if result["best_candidate"]:
+        console.print(
+            "Approve only after manual review: "
+            f"[yellow]python -m workers.cli approve-script {ws.root} "
+            f"--candidate {result['best_candidate']} --notes \"Approved from Story Lab\"[/yellow]"
+        )
 
 
 @app.command("approve-script")

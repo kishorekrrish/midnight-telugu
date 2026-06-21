@@ -1,0 +1,27 @@
+{
+  "candidate_id": "bp02_candidate_03",
+  "blueprint_id": "blueprint_6529a13a",
+  "idea_id": "idea_lab_01_f0e149",
+  "script_text": "రాత్రి 12:17కి చివరి రైలు వెళ్లిపోయింది. ఖాళీ ప్లాట్‌ఫామ్‌పై ఒక ముసలాయన చంద్రను చూసి, “ఇంకా ఎక్కకు” అన్నాడు.\n\nవర్షం కురుస్తోంది, చంద్రలోకి భయం creep అవుతోంది. ఫోన్ సిగ్నల్లు మసకబారాయి, స్టేషన్ గడియారం ఆగిపోయింది, 12:17.\n\nచీకటిలో, చుట్టూ ఉన్న ఖాళీ స్థలం, మంటలతో కూడిన రైలు వస్తుందా అనే ఆలోచనలో మునిగింది.\n\n“చంద్ర, ఇంకెందుకు రైలు ఎక్కాలి?” ముసలాయన మెల్లగా ప్రశ్నించాడు. ఆ వాక్యం, అతనికి పాత అనుభవాలను గుర్తుచేస్తోంది. వర్షంలో, ముసలాయన మాటలు, అతనికి తెలుసు దానంతట, కానీ ఎందుకు?\n\nకొద్ది క్షణాల తరువాత, చంద్ర స్టేషన్ మాస్టర్ గదిలోకి వెళ్లి ఒక పాత ఫోటోను చూసాడు. అదే బెంచ్, అదే ముసలాయన, అదే 12:17 గడియారం. “ఈ ముసలాయన ఐదు సంవత్సరాల క్రితం ఇదే బెంచ్ మీద చనిపోయాడు” అని స్టేషన్ మాస్టర్ అంగీకరించాడు.\n\nచంద్ర వెనక్కి తిరిగాడు, కానీ బెంచ్ ఖాళీగా ఉంది. ఫోటోలో ముసలాయన పక్కన ఉన్న ఖాళీ చోట, ఇప్పుడు చంద్ర యొక్క నీడ కనిపిస్తోంది.\n\nగడియారం మళ్లీ 12:17 దగ్గర ఆగిపోయింది.",
+  "critique": {
+    "would_stop_scroll": true,
+    "predicted_drop_points": [],
+    "predictable_twist": false,
+    "final_line_strength": 9,
+    "comment_potential": "Viewer may comment about the clock/photo clue.",
+    "replay_clue": "పాత ఫోటో",
+    "boring_sentences": [],
+    "required_fixes": [],
+    "editor_score": 94
+  },
+  "rewrite_notes": [],
+  "narrative_score": 72,
+  "quality_score": 83,
+  "telugu_authenticity_score": 100,
+  "continuity_score": 90,
+  "hard_failures": [
+    "UNPLANNED_LOCATION",
+    "FINAL_TWIST_NOT_CONNECTED_TO_HOOK"
+  ],
+  "recommendation": "needs_rewrite"
+}

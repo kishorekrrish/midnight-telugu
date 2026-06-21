@@ -530,9 +530,9 @@ Write ONE production-ready Telugu voice-over narration script from this locked b
 
 Hard requirements:
 - Output only the final Telugu narration text. No headings, notes, markdown, translations, or explanations.
-- Natural spoken Telugu, mature Indian narrator tone.
-- 45-60 seconds when narrated.
-- Viral hook in the first 2-3 seconds.
+- Natural spoken Telugu, mature Indian narrator tone. It should sound like a human Telugu narrator, not a plot summary.
+- 45-60 seconds when narrated, around 115-145 Telugu words.
+- Viral hook in the first 2-3 seconds: one strange concrete image, not generic suspense.
 - One protagonist only; do not change the protagonist name.
 - No POV confusion.
 - No unnecessary English words.
@@ -540,6 +540,18 @@ Hard requirements:
 - The final twist must be specific, clear, and pay off an earlier clue.
 - End with a strong final line.
 - Stay family-safe: no gore, no graphic violence.
+- Use 5 short breath-friendly paragraphs.
+- Build suspense through concrete details: rain, empty platform, stopped clock, old bench, flickering light, quiet tracks.
+- The reveal must explicitly connect the old man, the old photo, the stopped clock, and the final train.
+- The final line must be cinematic and chilling, not explanatory.
+- Avoid these weak phrases: "ఏదో రహస్యం", "అర్థం కాలేదు", "అంచనా వేయలేనిది", "జీవితం మార్చింది", "ఆసక్తి చూపించాడు".
+- Avoid awkward Telugu such as "అవినీతి అనుభవాలు", "సర్దుబాటు చేసుకోవడం", "పుట్టిమనసులో".
+- Do not say the protagonist is curious; show what he sees, hears, and does.
+- Paragraph 1: cold-open hook at 12:17.
+- Paragraph 2: context and atmosphere: rain, empty platform, phone dead, stopped clock.
+- Paragraph 3: old man's warning becomes personal; one replay clue appears.
+- Paragraph 4: station master/photo/register reveal.
+- Paragraph 5: final twist with the empty bench/photo shadow and the stopped clock.
 
 Locked blueprint:
 Title: {blueprint.title}

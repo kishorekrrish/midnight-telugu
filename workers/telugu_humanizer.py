@@ -156,6 +156,9 @@ Hard requirements:
 - Keep it around 45-60 seconds.
 - Add suspenseful breathing rhythm with short paragraphs.
 - No moral lecture, no engagement question.
+- Keep concrete cinematic details and suspense beats.
+- Replace flat summary language with moment-by-moment narration.
+- Keep the hook sharp and the final line chilling.
 
 Script:
 ```

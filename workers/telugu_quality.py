@@ -55,6 +55,14 @@ ENGLISH_TO_TELUGU: dict[str, str] = {
     "figure": "ఆకృతి",
     "handprint": "చేతి ముద్ర",
     "scratch marks": "గోకిన గీతలు",
+    "deserted": "నిర్జనమైన",
+    "railway station": "రైల్వే స్టేషన్",
+    "station": "స్టేషన్",
+    "platform": "ప్లాట్‌ఫామ్",
+    "shocking details": "గుండె ఆగిపోయే నిజాలు",
+    "shocking": "గుండె ఆగిపోయే",
+    "details": "వివరాలు",
+    "dead": "చచ్చిపోయింది",
     # Actions
     "line cut": "లైన్ తెగిపోయింది",
     "call back": "తిరిగి call చేసాడు",
@@ -102,6 +110,14 @@ _AVOIDABLE_PATTERNS: list[tuple[str, str]] = [
     (r"\bfootage\b", "దృశ్యం"),
     (r"\breceipt\b", "రసీదు"),
     (r"\brecording\b", "రికార్డు"),
+    (r"\bdeserted\b", "నిర్జనమైన"),
+    ("railway station", "రైల్వే స్టేషన్"),
+    (r"\bstation\b", "స్టేషన్"),
+    (r"\bplatform\b", "ప్లాట్‌ఫామ్"),
+    ("shocking details", "గుండె ఆగిపోయే నిజాలు"),
+    (r"\bshocking\b", "గుండె ఆగిపోయే"),
+    (r"\bdetails\b", "వివరాలు"),
+    (r"\bdead\b", "చచ్చిపోయింది"),
 ]
 
 # POV markers — used by continuity checker

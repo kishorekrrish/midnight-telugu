@@ -1,0 +1,17 @@
+{
+  "story_slug": "chandra-last-train",
+  "category": "supernatural_suspense",
+  "target_duration_seconds": 50,
+  "audience": "Telugu YouTube Shorts audience",
+  "tone": "restrained supernatural suspense",
+  "location_preference": "deserted railway station at night",
+  "emotion": "fear + grief + fate",
+  "twist_type": "earned ghost reveal with replay clue",
+  "avoid": [
+    "moral lecture",
+    "generic dream ending",
+    "copied movie plot",
+    "random ghost appearance",
+    "old photo explains everything without setup"
+  ]
+}

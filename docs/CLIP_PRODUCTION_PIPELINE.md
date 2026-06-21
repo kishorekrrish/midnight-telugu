@@ -2,6 +2,14 @@
 
 Midnight Telugu now supports a local clip-based Shorts production flow under `stories/<story_slug>/`.
 
+Story quality comes first. For new stories, start with Story Lab Phase 1A:
+
+```bash
+python -m workers.cli generate-story-lab-package chandra-last-train --ideas 10 --top-blueprints 3 --scripts-per-blueprint 3
+```
+
+After manual script approval, continue with the media pipeline below.
+
 The script is always auto-generated first, then manually approved before any production command can run.
 
 ```bash

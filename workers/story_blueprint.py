@@ -30,6 +30,13 @@ _CATEGORY_DEFAULTS: dict[str, dict[str, list[str] | str]] = {
         "clues": ["ఉత్తరం", "పాత ఫోటో", "తేదీ రాసిన కాగితం"],
         "locations": ["పాత ఇల్లు", "అలమర దగ్గర"],
     },
+    "strange_event": {
+        "names": ["చంద్ర"],
+        "role": "యువకుడు",
+        "devices": ["చివరి రైలు హెచ్చరిక", "ముసలాయన మాట", "ఖాళీ ప్లాట్‌ఫామ్"],
+        "clues": ["పాత ఫోటో", "స్టేషన్ మాస్టర్ రిజిస్టర్", "చివరి రైలు సమయం"],
+        "locations": ["రైల్వే స్టేషన్", "ప్లాట్‌ఫామ్"],
+    },
 }
 _GENERIC_DEFAULT = {
     "names": ["రవి", "లక్ష్మి", "శ్యామ్"],
@@ -39,16 +46,19 @@ _GENERIC_DEFAULT = {
     "locations": ["పాత ఇల్లు", "లోపలి గది"],
 }
 _NAME_CANDIDATES = [
-    "శ్యామ్", "కార్తీక్", "రవి", "అర్జున్", "కిరణ్", "మాలతి", "గీత", "అనిత", "లక్ష్మి",
+    "చంద్ర", "శ్యామ్", "కార్తీక్", "రవి", "అర్జున్", "కిరణ్", "మాలతి", "గీత", "అనిత", "లక్ష్మి",
 ]
 _DEVICE_HINTS = [
-    "వాయిస్ మెమో", "రికార్డింగ్", "ఉత్తరం", "ఫోటో", "డైరీ", "పెట్టె", "తాళం", "బొమ్మ",
+    "చివరి రైలు", "హెచ్చరిక", "వాయిస్ మెమో", "రికార్డింగ్", "ఉత్తరం", "ఫోటో", "డైరీ", "పెట్టె", "తాళం", "బొమ్మ",
 ]
 _LOCATION_HINTS = [
-    "చెరువు గట్టు", "పాత ఇల్లు", "గది", "అలమర", "ఆసుపత్రి", "స్టేషన్", "బావి",
+    "ప్లాట్‌ఫామ్", "రైల్వే స్టేషన్", "చెరువు గట్టు", "పాత ఇల్లు", "గది", "అలమర", "ఆసుపత్రి", "స్టేషన్", "బావి",
 ]
 _FORBIDDEN_POOL = [
     "కొత్త పాత్ర", "సంబంధం లేని వస్తువు", "యాదృచ్ఛికంగా వచ్చిన పాత చీర", "చివర్లో కొత్త రహస్యం",
+]
+_CHANDRA_RAILWAY_SIGNALS = [
+    "చంద్ర", "చివరి రైలు", "రైలు", "రైల్వే", "స్టేషన్", "ప్లాట్‌ఫామ్", "12:17",
 ]
 
 
@@ -69,8 +79,48 @@ def _pick_first_match(text: str, candidates: list[str]) -> str | None:
     return None
 
 
+def _is_chandra_railway_idea(idea: StoryIdea) -> bool:
+    corpus = " ".join([idea.id, idea.title, idea.hook, idea.premise, idea.twist])
+    return "చంద్ర" in corpus and any(signal in corpus for signal in _CHANDRA_RAILWAY_SIGNALS[1:])
+
+
 def build_blueprint(idea: StoryIdea) -> StoryBlueprint:
     category_key = _category_key(idea)
+    if idea.id == "idea_chandra_last_train" or _is_chandra_railway_idea(idea):
+        normalized_hook = _normalize(idea.hook)
+        normalized_setup = _normalize(idea.premise)
+        normalized_reveal = _normalize(idea.twist)
+        return StoryBlueprint(
+            id=f"blueprint_{uuid.uuid4().hex[:8]}",
+            idea_id=idea.id,
+            title=idea.title,
+            category=idea.category,
+            protagonist_name="చంద్ర",
+            protagonist_role="రాత్రి రైల్వే స్టేషన్‌లో చిక్కుకున్న యువకుడు",
+            point_of_view="third_person",
+            hook=normalized_hook,
+            central_question="చంద్రని చివరి రైలు ఎక్కొద్దని హెచ్చరించిన ముసలాయన నిజంగా ఎవరు?",
+            primary_story_device="చివరి రైలు",
+            primary_clue="పాత ఫోటో",
+            supporting_clues=["ఆగిపోయిన గడియారం", "స్టేషన్ మాస్టర్ రిజిస్టర్"],
+            setup=normalized_setup,
+            escalation=(
+                f"{normalized_setup} ముసలాయన చంద్ర పేరు చెప్పకముందే తెలుసుకుంటాడు; "
+                "గడియారం 12:17 దగ్గరే ఆగిపోతుంది; చివరి రైలు గురించి అతని హెచ్చరిక మరింత వ్యక్తిగతంగా మారుతుంది."
+            ),
+            reveal=(
+                f"{normalized_reveal} స్టేషన్ మాస్టర్ పాత ఫోటో చూపించి, అదే ముసలాయన ఐదు సంవత్సరాల క్రితం "
+                "ఇదే బెంచ్ మీద చివరి రైలు కోసం ఎదురు చూస్తూ చనిపోయాడని చెప్తాడు."
+            ),
+            final_twist=(
+                "చంద్ర వెనక్కి చూసేసరికి బెంచ్ ఖాళీగా ఉంటుంది; కానీ పాత ఫోటోలో ముసలాయన పక్కన ఖాళీగా ఉన్న చోట "
+                "ఇప్పుడు చంద్ర నీడ కనిపిస్తుంది."
+            ),
+            final_line="గడియారం మళ్లీ 12:17 దగ్గరే ఆగిపోయింది.",
+            locations=["ప్లాట్‌ఫామ్", "రైల్వే స్టేషన్"],
+            forbidden_elements=["కొత్త పాత్ర", "వేరే నగరం", "మోరల్ లెక్చర్", "యాదృచ్ఛిక కల"],
+        )
+
     defaults = _CATEGORY_DEFAULTS.get(category_key, _GENERIC_DEFAULT)
     corpus = " ".join([idea.title, idea.hook, idea.premise, idea.twist])
 

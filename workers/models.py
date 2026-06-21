@@ -267,6 +267,17 @@ class StoryBlueprint(BaseModel):
     final_line: str
     locations: list[str] = Field(default_factory=list)
     forbidden_elements: list[str] = Field(default_factory=list)
+    opening_image: str = ""
+    first_3_seconds_hook: str = ""
+    protagonist_desire: str = ""
+    hidden_truth: str = ""
+    early_clue: str = ""
+    misdirection: str = ""
+    midpoint_turn: str = ""
+    reveal_mechanism: str = ""
+    final_recontextualization: str = ""
+    replay_value_clue: str = ""
+    emotional_aftertaste: str = ""
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
