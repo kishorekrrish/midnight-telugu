@@ -1,36 +1,55 @@
 {
   "candidate_id": "bp02_candidate_02",
-  "blueprint_id": "blueprint_6529a13a",
-  "idea_id": "idea_lab_01_f0e149",
-  "script_text": "```\n12:17. చివరి రైలు పారిపోయింది.\n\nఒక ముసలాయన, చల్లని వర్షంలో, ఖాళీ ప్లాట్‌ఫామ్ మీద చంద్రని గమనించి “ఇంకా ఎక్కకు” అని అంటాడు. చంద్రకి అర్థం కాలేదు. \n\nఅతనికి ఫోన్ సిగ్నల్ లేదు. ఈ ప్రదేశం ఎంత విచిత్రంగా ఉందో తెలుసుకోవడానికి అతను ప్రయత్నిస్తున్నాడు. \n\nగడియారం 12:17 వద్ద ఆగిపోయింది. పాత బెంచ్ మీద కూర్చున్న ముసలాయన, చంద్ర పేరు చెప్పడం ఆయనకు ఆశ్చర్యాన్ని కలిగించింది. \n\n“నువ్వు ఈ రైలుకు ఎక్కవద్దు,” అని ముసలాయన హెచ్చరించడంతో, చంద్రకు ఆ ఫోటో గుర్తుకు వచ్చింది. అక్కడ ముసలాయన ముఖం, అదే బెంచ్, అదే గడియారం ఉన్నది.\n\nచంద్ర స్టేషన్ మాస్టర్ గదిలోకి వెళ్లాడు. అక్కడ ఆ పాత ఫోటో చూసి, మాస్టర్ చెబుతున్నాడు, “ఈ ముసలాయన ఐదు సంవత్సరాల క్రితం, ఇదే బెంచ్ మీద చివరి రైలు కోసం ఎదురు చూస్తూ చనిపోయాడు.” \n\nపలుకుబడి ముగిసింది. చంద్ర వెనక్కి చూసాడు. బెంచ్ ఖాళీగా ఉంది; కానీ ఫోటోలోని ఖాళీ చోట ఇప్పుడు అతడి నీడ ఉంది. గడియారం మళ్లీ 12:17 దగ్గరే ఆగిపోయింది. \n```",
+  "blueprint_id": "blueprint_cb494cb3",
+  "idea_id": "idea_lab_01_de74eb",
+  "script_text": "వర్షంలో భిగిన ప్లాట్‌ఫామ్. గడియారం 12:17ని చూపిస్తుంది. ముసలాయన బెంచ్ మీద కూర్చొని, చంద్రకు చూపిస్తూ, \"ఇంకా ఎక్కకు\" అని అంటాడు. చంద్రకి డబ్బు, సిగ్నల్ ఏమీ లేదు.\n\n“మీరు ఎవరు?” చంద్ర అడుగుతాడు. ముసలాయన చిరునవ్వుతో, \"నేను అక్కడ ఉన్నాను, నువ్వు ఎక్కడైనా\" అంటాడు. చంద్రకు కాస్త భయం వేస్తుంది.\n\nగడియారం ఇంకా ఆగిపోతుంది. ముసలాయన చూపించిన పాత ఫోటోలో, అదే బెంచ్, అదే గడియారం, కానీ ఇక్కడ కేవలం ఒక నీడ మాత్రమే. చంద్ర గమనించకుండా వెనక్కి చూస్తాడు - బెంచ్ ఖాళీగా ఉంది.\n\n\"ఈ ఫోటోలోని ముసలాయన ఐదు సంవత్సరాల క్రితం చనిపోయాడు\" అంటాడు స్టేషన్ మాస్టర్. చంద్ర గుండె పగిలిపోతుంది. \n\nగడియారం మళ్లీ 12:17 దగ్గరే ఆగిపోయింది.",
   "critique": {
-    "would_stop_scroll": false,
-    "predicted_drop_points": [
-      "చంద్రకి అర్థం కాలేదు."
-    ],
-    "predictable_twist": true,
-    "final_line_strength": 7,
+    "would_stop_scroll": true,
+    "predicted_drop_points": [],
+    "predictable_twist": false,
+    "final_line_strength": 8,
     "comment_potential": "Viewer may comment about the clock/photo clue.",
     "replay_clue": "పాత ఫోటో",
-    "boring_sentences": [
-      "చంద్రకి అర్థం కాలేదు."
-    ],
-    "required_fixes": [
-      "Remove flat summary sentences.",
-      "Make final line more chilling."
-    ],
-    "editor_score": 73
+    "boring_sentences": [],
+    "required_fixes": [],
+    "editor_score": 86
   },
-  "rewrite_notes": [
-    "Remove flat summary sentences.",
-    "Make final line more chilling."
-  ],
-  "narrative_score": 84,
-  "quality_score": 73,
+  "rewrite_notes": [],
+  "narrative_score": 64,
+  "quality_score": 83,
   "telugu_authenticity_score": 100,
-  "continuity_score": 75,
+  "continuity_score": 90,
+  "editorial_gate": {
+    "hook_score": 70,
+    "atmosphere_score": 72,
+    "narrative_drive_score": 68,
+    "twist_fairness_score": 87,
+    "emotional_aftertaste_score": 100,
+    "telugu_voice_score": 100,
+    "visual_clarity_score": 100,
+    "total": 85,
+    "blockers": [
+      "WORD_COUNT_OUT_OF_RANGE:80",
+      "PRIMARY_DEVICE_NOT_VISIBLE",
+      "LOW_HOOK:70",
+      "LOW_ATMOSPHERE:72",
+      "LOW_NARRATIVE_DRIVE:68",
+      "LOW_TWIST_FAIRNESS:87"
+    ],
+    "notes": [
+      "Overall editorial score is below best-in-class threshold."
+    ]
+  },
   "hard_failures": [
-    "UNPLANNED_LOCATION"
+    "POV_MISMATCH",
+    "PRIMARY_DEVICE_NOT_RESOLVED",
+    "FINAL_TWIST_NOT_CONNECTED_TO_HOOK",
+    "WORD_COUNT_OUT_OF_RANGE:80",
+    "PRIMARY_DEVICE_NOT_VISIBLE",
+    "LOW_HOOK:70",
+    "LOW_ATMOSPHERE:72",
+    "LOW_NARRATIVE_DRIVE:68",
+    "LOW_TWIST_FAIRNESS:87"
   ],
   "recommendation": "needs_rewrite"
 }

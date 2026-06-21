@@ -15,12 +15,16 @@ from workers.io_utils import write_json
 from workers.models import ContentCategory, HumanizedScript, StoryBlueprint, StoryIdea
 from workers.narrative_facts import extract_narrative_facts
 from workers.narrative_validator import validate_narrative
-from workers.script_generator import generate_script
 from workers.script_quality import validate_script
 from workers.story_blueprint import build_blueprint
 from workers.story_continuity import check_continuity
-from workers.telugu_humanizer import humanize_script
 from workers.telugu_quality import check_telugu_quality
+
+BEST_IN_CLASS_MIN_EDITORIAL = 88
+BEST_IN_CLASS_MIN_QUALITY = 92
+BEST_IN_CLASS_MIN_TELUGU = 96
+BEST_IN_CLASS_MIN_CONTINUITY = 90
+BEST_IN_CLASS_MIN_CRITIQUE = 88
 
 
 class StoryBrief(BaseModel):
@@ -71,6 +75,19 @@ class ScriptCritique(BaseModel):
     editor_score: int = 0
 
 
+class EditorialGate(BaseModel):
+    hook_score: int = 0
+    atmosphere_score: int = 0
+    narrative_drive_score: int = 0
+    twist_fairness_score: int = 0
+    emotional_aftertaste_score: int = 0
+    telugu_voice_score: int = 0
+    visual_clarity_score: int = 0
+    total: int = 0
+    blockers: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
 class StoryLabCandidate(BaseModel):
     candidate_id: str
     blueprint_id: str
@@ -82,6 +99,7 @@ class StoryLabCandidate(BaseModel):
     quality_score: int = 0
     telugu_authenticity_score: int = 0
     continuity_score: int = 0
+    editorial_gate: EditorialGate = Field(default_factory=EditorialGate)
     hard_failures: list[str] = Field(default_factory=list)
     recommendation: str = "needs_rewrite"
 
@@ -362,6 +380,224 @@ def build_advanced_blueprint(idea: StoryIdea) -> StoryBlueprint:
     return blueprint
 
 
+def _is_chandra_blueprint(blueprint: StoryBlueprint) -> bool:
+    corpus = " ".join([blueprint.title, blueprint.hook, blueprint.setup, blueprint.reveal, blueprint.final_twist])
+    return blueprint.protagonist_name == "చంద్ర" and any(token in corpus for token in ["రైలు", "స్టేషన్", "ప్లాట్‌ఫామ్"])
+
+
+def _mock_director_script(blueprint: StoryBlueprint) -> str:
+    if _is_chandra_blueprint(blueprint):
+        return """రాత్రి 12:17కి చివరి రైలు కదిలిపోయింది.
+ఖాళీ ప్లాట్‌ఫామ్ మీద చంద్ర ఒక్కడే మిగిలాడు.
+కానీ అతని కాళ్ల దగ్గర రెండు నీడలు పడ్డాయి.
+
+వర్షం ఆగలేదు. ఫోన్‌లో సిగ్నల్ లేదు.
+స్టేషన్ గడియారం మాత్రం ఒక్క నిమిషం కూడా కదలలేదు.
+అదే 12:17.
+
+పక్క బెంచ్ నుంచి ఒక ముసలాయన గొంతు వినిపించింది.
+"ఇంకా ఎక్కకు, చంద్రా."
+చంద్ర ఒక్కసారిగా వెనక్కి చూశాడు.
+ఆ ముసలాయన పేరు అడగలేదు. కానీ చంద్ర పేరు తెలుసు.
+
+ప్లాట్‌ఫామ్ మొత్తం తడిగా ఉంది.
+కానీ ఆ ముసలాయన కూర్చున్న బెంచ్ మీద ఒక్క చుక్క నీరు లేదు.
+
+చంద్ర ప్లాట్‌ఫామ్ చివరికి నడిచాడు.
+అక్కడ స్టేషన్ మాస్టర్ రిజిస్టర్ తెరిచి ఉంది.
+పక్కనే దుమ్ము పట్టిన పాత ఫోటో.
+
+ఫోటోలో అదే బెంచ్.
+అదే ముసలాయన.
+గడియారం కూడా అదే 12:17.
+కింద తేదీ ఉంది.
+ఐదు సంవత్సరాల క్రితం, ఇదే రాత్రి.
+
+రిజిస్టర్‌లో చివరి లైన్ చదివేసరికి చంద్ర చేతులు వణికాయి.
+"చివరి రైలు కోసం ఎదురు చూసిన ప్రయాణికుడు అక్కడికక్కడే చనిపోయాడు."
+
+చంద్ర వెనక్కి తిరిగాడు.
+రిజిస్టర్‌లో చనిపోయాడు అని రాసిన ముసలాయన కూర్చున్న బెంచ్ ఖాళీగా ఉంది.
+
+కానీ ఫోటోలో ముసలాయన పక్కన ఖాళీగా ఉన్న చోట,
+ఇప్పుడు చంద్ర నీడ నిలబడి ఉంది.
+
+ప్లాట్‌ఫామ్ లైట్ కింద చంద్ర మళ్లీ తన కాళ్లను చూశాడు.
+ఈసారి నేలపై నీడ ఒక్కటే ఉంది.
+మొదట కనిపించిన రెండో నీడ, ఐదు సంవత్సరాల క్రితం చనిపోయాడు అని రిజిస్టర్‌లో ఉన్న ముసలాయనదే."""
+
+    return f"""{blueprint.hook}
+
+{blueprint.protagonist_name} ఆ చోటు నుంచి వెళ్లిపోవాలని అనుకున్నాడు. కానీ {blueprint.primary_clue} అతన్ని ఆపేసింది.
+
+చుట్టూ నిశ్శబ్దం. చేతులు వణికాయి. ప్రతి చిన్న శబ్దం కూడా హెచ్చరికలా వినిపించింది.
+
+{blueprint.escalation}
+
+{blueprint.reveal}
+
+{blueprint.final_twist}
+{blueprint.final_line}"""
+
+
+def _build_director_prompt(blueprint: StoryBlueprint) -> str:
+    supporting = ", ".join(blueprint.supporting_clues) or "none"
+    locations = ", ".join(blueprint.locations) or "one contained location"
+    forbidden = ", ".join(blueprint.forbidden_elements) or "new characters, new objects, generic ending"
+    return f"""You are the creative director and final Telugu writer for Midnight Telugu.
+
+Do not behave like a generic script generator. Build a best-in-class YouTube Shorts suspense narration.
+
+Output only the final Telugu narration text. No markdown, no title, no explanation.
+
+Creative standard:
+- First 2 seconds must create a visual impossibility.
+- Every line must either reveal character, increase dread, plant/pay off a clue, or sharpen the twist.
+- Natural spoken Telugu only. No English words unless unavoidable in common Telugu usage.
+- No plot-summary language. Write moment-by-moment, like a mature Telugu narrator.
+- No moral, no engagement question, no generic "అప్పుడు నిజం తెలిసింది" ending.
+- One protagonist only: {blueprint.protagonist_name}. Do not introduce a second hero.
+- Keep location contained to: {locations}.
+- Use the required clue before the reveal: {blueprint.primary_clue}.
+- The reveal must be fair: the audience should remember an earlier clue and want to replay.
+- End on an aftershock image, not an explanation.
+- 105-155 words. Short breath-friendly paragraphs.
+
+Locked story contract:
+Title: {blueprint.title}
+Protagonist: {blueprint.protagonist_name}
+Point of view: {blueprint.point_of_view}
+Opening image: {blueprint.opening_image or blueprint.hook}
+Hook: {blueprint.hook}
+Central question: {blueprint.central_question}
+Primary device: {blueprint.primary_story_device}
+Primary clue: {blueprint.primary_clue}
+Supporting clues: {supporting}
+Setup: {blueprint.setup}
+Escalation: {blueprint.escalation}
+Reveal: {blueprint.reveal}
+Final twist: {blueprint.final_twist}
+Final line idea: {blueprint.final_line}
+Emotional aftertaste: {blueprint.emotional_aftertaste}
+Forbidden elements: {forbidden}
+"""
+
+
+def generate_director_script(blueprint: StoryBlueprint, provider: str | None = None) -> str:
+    """Generate the Story Lab script through the stricter creative director path."""
+    provider = provider or DEFAULT_TEXT_PROVIDER
+    if provider == "mock":
+        return _mock_director_script(blueprint)
+
+    from workers.providers import get_text_provider
+    from workers.telugu_quality import apply_telugu_replacements
+
+    text = get_text_provider(provider).generate_text(_build_director_prompt(blueprint)).strip()
+    if not text:
+        raise RuntimeError(f"Text provider '{provider}' returned an empty director script.")
+    return apply_telugu_replacements(text)
+
+
+def run_editorial_gate(script_text: str, blueprint: StoryBlueprint) -> EditorialGate:
+    """Deterministic craft gate before any script can be called best-in-class."""
+    text = script_text.strip()
+    first_220 = text[:220]
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    final_300 = text[-300:]
+    blockers: list[str] = []
+    notes: list[str] = []
+
+    impossible_signals = ["కానీ", "రెండు", "ఆగిపోయ", "ఖాళీ", "తడి", "నీడ", "మోగింది", "తెలియని"]
+    atmosphere_signals = ["వర్షం", "నిశ్శబ్దం", "చీకటి", "గడియారం", "గొంతు", "చేతులు", "లైట్", "తడిగా"]
+    drive_signals = ["వెనక్కి", "నడిచాడు", "చూశాడు", "వినిపించింది", "చదివేసరికి", "తిరిగాడు"]
+    reveal_signals = ["చనిపోయ", "ఐదు సంవత్సరాల", "రిజిస్టర్", "ఫోటో", "ఇప్పుడు", "అదే"]
+    aftershock_signals = ["నీడ", "ఖాళీ", "ఆగిపోయింది", "మళ్లీ", "అతనిది కాదు", "ముసలాయనదే"]
+    weak_phrases = [
+        "ఏదో రహస్యం",
+        "అర్థం కాలేదు",
+        "జీవితం మార్చింది",
+        "ఆసక్తి చూపించాడు",
+        "ఉరితడిలో",
+        "కట్టుబట్టగా",
+        "ఒంటరిగా ఉంది",
+        "ఎలా చెప్పలేదంటే",
+        "దారుణంగా అనిపించాయి",
+        "creep",
+    ]
+
+    word_count = len(text.split())
+    if not 95 <= word_count <= 180:
+        blockers.append(f"WORD_COUNT_OUT_OF_RANGE:{word_count}")
+
+    if any(phrase in text for phrase in weak_phrases):
+        blockers.append("WEAK_OR_AWKWARD_LANGUAGE")
+
+    telugu = check_telugu_quality(text)
+    if telugu.telugu_authenticity_score < BEST_IN_CLASS_MIN_TELUGU:
+        blockers.append("TELUGU_NOT_AUTHENTIC_ENOUGH")
+
+    if len(paragraphs) < 5:
+        blockers.append("TOO_FEW_BREATH_BEATS")
+
+    if blueprint.protagonist_name and blueprint.protagonist_name not in text:
+        blockers.append("PROTAGONIST_MISSING")
+
+    if blueprint.primary_clue and blueprint.primary_clue not in text:
+        blockers.append("PRIMARY_CLUE_NOT_VISIBLE")
+
+    if blueprint.primary_story_device and not any(alias in text for alias in [blueprint.primary_story_device, "రైలు"]):
+        blockers.append("PRIMARY_DEVICE_NOT_VISIBLE")
+
+    hook_score = 70 + min(30, sum(signal in first_220 for signal in impossible_signals) * 8)
+    atmosphere_score = 60 + min(40, sum(signal in text for signal in atmosphere_signals) * 6)
+    narrative_drive_score = 60 + min(40, sum(signal in text for signal in drive_signals) * 8)
+    twist_fairness_score = 55 + min(45, sum(signal in final_300 for signal in reveal_signals) * 8)
+    emotional_aftertaste_score = 60 + min(40, sum(signal in final_300 for signal in aftershock_signals) * 10)
+    telugu_voice_score = telugu.telugu_authenticity_score
+    visual_clarity_score = 60 + min(40, sum(signal in text for signal in ["ప్లాట్‌ఫామ్", "బెంచ్", "ఫోటో", "గడియారం", "నీడ"]) * 8)
+
+    score_values = [
+        hook_score,
+        atmosphere_score,
+        narrative_drive_score,
+        twist_fairness_score,
+        emotional_aftertaste_score,
+        telugu_voice_score,
+        visual_clarity_score,
+    ]
+    total = sum(score_values) // len(score_values)
+
+    for label, value in [
+        ("hook", hook_score),
+        ("atmosphere", atmosphere_score),
+        ("narrative_drive", narrative_drive_score),
+        ("twist_fairness", twist_fairness_score),
+        ("emotional_aftertaste", emotional_aftertaste_score),
+        ("telugu_voice", telugu_voice_score),
+        ("visual_clarity", visual_clarity_score),
+    ]:
+        if value < BEST_IN_CLASS_MIN_EDITORIAL:
+            blockers.append(f"LOW_{label.upper()}:{value}")
+
+    if total < BEST_IN_CLASS_MIN_EDITORIAL:
+        notes.append("Overall editorial score is below best-in-class threshold.")
+    if not blockers:
+        notes.append("Clears best-in-class editorial gate.")
+
+    return EditorialGate(
+        hook_score=min(100, hook_score),
+        atmosphere_score=min(100, atmosphere_score),
+        narrative_drive_score=min(100, narrative_drive_score),
+        twist_fairness_score=min(100, twist_fairness_score),
+        emotional_aftertaste_score=min(100, emotional_aftertaste_score),
+        telugu_voice_score=min(100, telugu_voice_score),
+        visual_clarity_score=min(100, visual_clarity_score),
+        total=min(100, total),
+        blockers=blockers,
+        notes=notes,
+    )
+
+
 def critique_script(script_text: str, blueprint: StoryBlueprint, provider: str | None = None) -> ScriptCritique:
     provider = provider or DEFAULT_TEXT_PROVIDER
     if provider != "mock":
@@ -452,7 +688,13 @@ Rules:
     return rewritten or script_text, critique.required_fixes
 
 
-def evaluate_candidate(candidate_id: str, blueprint: StoryBlueprint, script_text: str, critique: ScriptCritique, rewrite_notes: list[str]) -> StoryLabCandidate:
+def evaluate_candidate(
+    candidate_id: str,
+    blueprint: StoryBlueprint,
+    script_text: str,
+    critique: ScriptCritique,
+    rewrite_notes: list[str],
+) -> StoryLabCandidate:
     wrapped = HumanizedScript(
         id=candidate_id,
         script_id=candidate_id,
@@ -465,12 +707,15 @@ def evaluate_candidate(candidate_id: str, blueprint: StoryBlueprint, script_text
     quality = validate_script(wrapped)
     telugu = check_telugu_quality(script_text)
     continuity = check_continuity(wrapped)
+    editorial = run_editorial_gate(script_text, blueprint)
     approved = (
         not narrative.hard_failures
-        and quality.quality_score >= 88
-        and telugu.telugu_authenticity_score >= 90
-        and continuity.continuity_score >= 90
-        and critique.editor_score >= 80
+        and quality.quality_score >= BEST_IN_CLASS_MIN_QUALITY
+        and telugu.telugu_authenticity_score >= BEST_IN_CLASS_MIN_TELUGU
+        and continuity.continuity_score >= BEST_IN_CLASS_MIN_CONTINUITY
+        and critique.editor_score >= BEST_IN_CLASS_MIN_CRITIQUE
+        and editorial.total >= BEST_IN_CLASS_MIN_EDITORIAL
+        and not editorial.blockers
     )
     return StoryLabCandidate(
         candidate_id=candidate_id,
@@ -483,7 +728,8 @@ def evaluate_candidate(candidate_id: str, blueprint: StoryBlueprint, script_text
         quality_score=quality.quality_score,
         telugu_authenticity_score=telugu.telugu_authenticity_score,
         continuity_score=continuity.continuity_score,
-        hard_failures=narrative.hard_failures,
+        editorial_gate=editorial,
+        hard_failures=[*narrative.hard_failures, *editorial.blockers],
         recommendation="approve_candidate" if approved else "needs_rewrite",
     )
 
@@ -495,12 +741,22 @@ def generate_story_lab_package(
     idea_count: int = 10,
     top_blueprints: int = 3,
     scripts_per_blueprint: int = 3,
+    max_candidates: int = 5,
 ) -> dict[str, Any]:
     provider = provider or DEFAULT_TEXT_PROVIDER
     story_dir.mkdir(parents=True, exist_ok=True)
     (story_dir / "idea_bank").mkdir(exist_ok=True)
     (story_dir / "blueprints").mkdir(exist_ok=True)
-    (story_dir / "script_candidates").mkdir(exist_ok=True)
+    candidate_dir = story_dir / "script_candidates"
+    candidate_dir.mkdir(exist_ok=True)
+    for stale_path in candidate_dir.glob("*"):
+        if stale_path.is_file():
+            stale_path.unlink()
+    for stale_script in [story_dir / "script.txt", story_dir / "script_draft.txt"]:
+        if stale_script.exists():
+            stale_script.unlink()
+
+    candidate_budget = max(1, min(max_candidates, top_blueprints * scripts_per_blueprint))
 
     ideas = generate_idea_bank(brief, count=idea_count, provider=provider)
     scored = [(idea, score_idea_viral(idea)) for idea in ideas]
@@ -519,22 +775,25 @@ def generate_story_lab_package(
 
     candidates: list[StoryLabCandidate] = []
     for blueprint_idx, (idea, _score) in enumerate(selected, start=1):
+        if len(candidates) >= candidate_budget:
+            break
         blueprint = build_advanced_blueprint(idea)
         write_json(story_dir / "blueprints" / f"blueprint_{blueprint_idx:02d}.json", blueprint)
         if blueprint_idx == 1:
             write_json(story_dir / "idea.json", idea)
             write_json(story_dir / "blueprint.json", blueprint)
         for script_idx in range(1, scripts_per_blueprint + 1):
-            raw = generate_script(blueprint, provider=provider)
-            humanized = humanize_script(raw, provider=provider)
-            critique = critique_script(humanized.full_script_telugu, blueprint, provider=provider)
-            rewritten, notes = rewrite_with_critique(humanized.full_script_telugu, blueprint, critique, provider=provider)
+            if len(candidates) >= candidate_budget:
+                break
+            draft = generate_director_script(blueprint, provider=provider)
+            critique = critique_script(draft, blueprint, provider=provider)
+            rewritten, notes = rewrite_with_critique(draft, blueprint, critique, provider=provider)
             final_critique = critique_script(rewritten, blueprint, provider=provider)
             candidate_id = f"bp{blueprint_idx:02d}_candidate_{script_idx:02d}"
             candidate = evaluate_candidate(candidate_id, blueprint, rewritten, final_critique, notes)
             candidates.append(candidate)
-            (story_dir / "script_candidates" / f"{candidate_id}.txt").write_text(rewritten, encoding="utf-8")
-            (story_dir / "script_candidates" / f"{candidate_id}.meta.json").write_text(
+            (candidate_dir / f"{candidate_id}.txt").write_text(rewritten, encoding="utf-8")
+            (candidate_dir / f"{candidate_id}.meta.json").write_text(
                 candidate.model_dump_json(indent=2),
                 encoding="utf-8",
             )
@@ -543,15 +802,19 @@ def generate_story_lab_package(
         key=lambda c: (
             1 if c.recommendation == "approve_candidate" else 0,
             c.critique.editor_score,
+            c.editorial_gate.total,
             c.narrative_score,
             c.quality_score,
             c.continuity_score,
         ),
         reverse=True,
     )
-    best = candidates[0] if candidates else None
+    approved_candidates = [candidate for candidate in candidates if candidate.recommendation == "approve_candidate"]
+    best = approved_candidates[0] if approved_candidates else None
     if best:
         (story_dir / "script.txt").write_text(best.script_text, encoding="utf-8")
+    elif candidates:
+        (story_dir / "script_draft.txt").write_text(candidates[0].script_text, encoding="utf-8")
     review_path = write_story_lab_review(story_dir, brief, scored, selected, candidates, best)
     return {
         "story_dir": story_dir,
@@ -606,6 +869,8 @@ def write_story_lab_review(
                 f"- Quality score: {candidate.quality_score}/100",
                 f"- Telugu authenticity: {candidate.telugu_authenticity_score}/100",
                 f"- Continuity: {candidate.continuity_score}/100",
+                f"- Editorial gate: {candidate.editorial_gate.total}/100",
+                f"- Editorial blockers: {', '.join(candidate.editorial_gate.blockers) or 'None'}",
                 f"- Hard failures: {', '.join(candidate.hard_failures) or 'None'}",
                 f"- Would stop scroll: {candidate.critique.would_stop_scroll}",
                 f"- Replay clue: {candidate.critique.replay_clue or 'None'}",
@@ -626,6 +891,18 @@ def write_story_lab_review(
                 "## Approval Command",
                 "",
                 f"```bash\npython -m workers.cli approve-script {story_dir} --candidate {best.candidate_id} --notes \"Approved from Story Lab\"\n```",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "## No Approved Candidate",
+                "",
+                (
+                    "No script cleared the best-in-class gate. Review the highest-ranked draft, "
+                    "tighten the story/blueprint, and regenerate before production approval."
+                ),
                 "",
             ]
         )

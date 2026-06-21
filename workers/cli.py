@@ -932,6 +932,7 @@ def generate_story_lab_package_cmd(
     ideas: int = typer.Option(10, "--ideas", min=3, max=20, help="Number of ideas to generate"),
     top_blueprints: int = typer.Option(3, "--top-blueprints", min=1, max=5),
     scripts_per_blueprint: int = typer.Option(3, "--scripts-per-blueprint", min=1, max=5),
+    max_candidates: int = typer.Option(5, "--max-candidates", min=1, max=5, help="Maximum script candidates to generate"),
     provider: str = typer.Option("openai", "--provider", help="Text provider for Story Lab generation"),
 ) -> None:
     """Run Story Lab Phase 1: ideas, viral scoring, blueprints, critique, rewrite, review."""
@@ -951,6 +952,7 @@ def generate_story_lab_package_cmd(
         idea_count=ideas,
         top_blueprints=top_blueprints,
         scripts_per_blueprint=scripts_per_blueprint,
+        max_candidates=max_candidates,
     )
     console.print(f"[green]✓[/green] Story Lab package created: {result['story_dir']}")
     console.print(f"Review package: [cyan]{result['review_path']}[/cyan]")
